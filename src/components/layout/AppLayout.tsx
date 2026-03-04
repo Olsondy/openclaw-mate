@@ -1,7 +1,11 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
+import { useTaskHandler } from '../../hooks/useTaskHandler'
 
 export function AppLayout() {
+  // 全局监听 Gateway 下发的任务事件，写入 TasksStore
+  useTaskHandler()
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />

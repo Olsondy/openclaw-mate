@@ -19,6 +19,10 @@ export interface ActivityLog {
   title: string
   description: string
   tags: string[]
+  /** 任务类型：browser / system / vision */
+  task_type?: TaskType
+  /** 执行耗时（毫秒） */
+  duration_ms?: number
 }
 
 export interface Capabilities {

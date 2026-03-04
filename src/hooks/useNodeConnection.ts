@@ -68,6 +68,8 @@ export function useNodeConnection() {
       await invoke('connect_gateway', {
         gatewayUrl: nodeConfig.gatewayWsUrl,
         token: nodeConfig.gatewayToken,
+        agentId: nodeConfig.agentId,
+        deviceName: nodeConfig.deviceName,
       })
     } catch (e) {
       setError(String(e))
