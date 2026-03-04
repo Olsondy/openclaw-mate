@@ -6,14 +6,16 @@ mod config;
 mod tray;
 mod ws_client;
 
+use tauri::Manager;
+
 #[tauri::command]
 async fn open_cloud_console(app: tauri::AppHandle, url: String) -> Result<(), String> {
     use tauri::WebviewWindowBuilder;
 
     let existing = app.get_webview_window("cloud-console");
     if let Some(win) = existing {
-        win.show().map_err(|e| e.to_string())?;
-        win.set_focus().map_err(|e| e.to_string())?;
+        win.show().map_err(|e: tauri::Error| e.to_string())?;
+        win.set_focus().map_err(|e: tauri::Error| e.to_string())?;
         return Ok(());
     }
 

@@ -1,5 +1,6 @@
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
+use tauri::Emitter;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
