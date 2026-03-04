@@ -33,12 +33,28 @@ export interface ApprovalRules {
   vision: ApprovalMode
 }
 
-export interface NodeConfig {
-  token: string
-  machine_id: string
-  auth_endpoint: string
-  gateway_endpoint: string
-  cloud_console_url: string
+/** 内存中的节点运行时配置（从服务端 verify 接口获取，不持久化） */
+export interface NodeRuntimeConfig {
+  gatewayWsUrl: string
+  gatewayWebUI: string
+  gatewayToken: string
+  agentId: string
+  deviceName: string
+}
+
+/** 用户授权信息（从服务端 verify 接口获取） */
+export interface UserProfile {
+  licenseStatus: string
+  expiryDate: string
+}
+
+/** 服务端 verify 接口的返回结构 */
+export interface VerifyResponse {
+  success: boolean
+  data: {
+    nodeConfig: NodeRuntimeConfig
+    userProfile: UserProfile
+  }
 }
 
 export interface PendingApproval {

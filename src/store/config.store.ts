@@ -1,24 +1,31 @@
 import { create } from 'zustand'
-import type { Capabilities, ApprovalRules, NodeConfig } from '../types'
+import { persist } from 'zustand/middleware'
+import type { Capabilities, ApprovalRules, NodeRuntimeConfig, UserProfile } from '../types'
 
-interface ConfigState {
-  config: NodeConfig
-  capabilities: Capabilities
-  approvalRules: ApprovalRules
-  setToken: (token: string) => void
-  setAuthEndpoint: (url: string) => void
-  setGatewayEndpoint: (url: string) => void
-  setCloudConsoleUrl: (url: string) => void
-  toggleCapability: (key: keyof Capabilities) => void
-  setApprovalRule: (key: keyof ApprovalRules, mode: ApprovalRules[keyof ApprovalRules]) => void
+/** 持久化至本地的设置（仅 licenseKey） */
+interface PersistedSettings {
+  licenseKey: string
 }
 
-const defaultConfig: NodeConfig = {
-  token: '',
-  machine_id: '',
-  auth_endpoint: '',
-  gateway_endpoint: '',
-  cloud_console_url: '',
+interface ConfigState {
+  /** 持久化：用户的 License Key */
+  licenseKey: string
+
+  /** 内存中：节点运行时配置（来自服务端 verify 接口，不持久化） */
+  runtimeConfig: NodeRuntimeConfig | null
+
+  /** 内存中：用户授权信息（来自服务端 verify 接口，不持久化） */
+  userProfile: UserProfile | null
+
+  capabilities: Capabilities
+  approvalRules: ApprovalRules
+
+  setLicenseKey: (key: string) => void
+  setRuntimeConfig: (config: NodeRuntimeConfig) => void
+  setUserProfile: (profile: UserProfile) => void
+  clearSession: () => void
+  toggleCapability: (key: keyof Capabilities) => void
+  setApprovalRule: (key: keyof ApprovalRules, mode: ApprovalRules[keyof ApprovalRules]) => void
 }
 
 const defaultCapabilities: Capabilities = {
@@ -33,30 +40,41 @@ const defaultApprovalRules: ApprovalRules = {
   vision: 'never',
 }
 
-export const useConfigStore = create<ConfigState>((set) => ({
-  config: defaultConfig,
-  capabilities: defaultCapabilities,
-  approvalRules: defaultApprovalRules,
+export const useConfigStore = create<ConfigState>()(
+  persist(
+    (set) => ({
+      licenseKey: '',
+      runtimeConfig: null,
+      userProfile: null,
+      capabilities: defaultCapabilities,
+      approvalRules: defaultApprovalRules,
 
-  setToken: (token) =>
-    set((state) => ({ config: { ...state.config, token } })),
+      setLicenseKey: (licenseKey) => set({ licenseKey }),
 
-  setAuthEndpoint: (auth_endpoint) =>
-    set((state) => ({ config: { ...state.config, auth_endpoint } })),
+      setRuntimeConfig: (runtimeConfig) => set({ runtimeConfig }),
 
-  setGatewayEndpoint: (gateway_endpoint) =>
-    set((state) => ({ config: { ...state.config, gateway_endpoint } })),
+      setUserProfile: (userProfile) => set({ userProfile }),
 
-  setCloudConsoleUrl: (cloud_console_url) =>
-    set((state) => ({ config: { ...state.config, cloud_console_url } })),
+      /** 清除内存中的 Session（但保留 licenseKey） */
+      clearSession: () => set({ runtimeConfig: null, userProfile: null }),
 
-  toggleCapability: (key) =>
-    set((state) => ({
-      capabilities: { ...state.capabilities, [key]: !state.capabilities[key] },
-    })),
+      toggleCapability: (key) =>
+        set((state) => ({
+          capabilities: { ...state.capabilities, [key]: !state.capabilities[key] },
+        })),
 
-  setApprovalRule: (key, mode) =>
-    set((state) => ({
-      approvalRules: { ...state.approvalRules, [key]: mode },
-    })),
-}))
+      setApprovalRule: (key, mode) =>
+        set((state) => ({
+          approvalRules: { ...state.approvalRules, [key]: mode },
+        })),
+    }),
+    {
+      name: 'easy-openclaw-settings',
+      // 只将 licenseKey、capabilities、approvalRules 写入本地存储，
+      // runtimeConfig 和 userProfile 不持久化，保障 Token 隐私
+      partialize: (state): PersistedSettings => ({
+        licenseKey: state.licenseKey,
+      }),
+    }
+  )
+)
