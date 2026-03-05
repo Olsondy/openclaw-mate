@@ -3,7 +3,7 @@ import { TopBar } from '../components/layout/TopBar'
 import { Card } from '../components/ui'
 import { useTasksStore, useConnectionStore } from '../store'
 import { BarChart3, CheckCircle2, XCircle, Clock, Timer, Wifi, WifiOff } from 'lucide-react'
-import type { ActivityLog, TaskType } from '../types'
+import type { ActivityLog } from '../types'
 
 /** 颜色映射 */
 const TYPE_COLORS: Record<string, string> = {

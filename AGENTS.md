@@ -27,6 +27,11 @@ The main code split is:
 - Install sidecar dependencies: `cd sidecar && npm install`
 - Start frontend dev server: `npm run dev`
 - Start desktop app in dev mode: `npm run tauri:dev`
+- Run lint: `npm run lint`
+- Run web build pre-check: `npm run check` / `npm run check:web`
+- Run test pre-check: `npm run check:test`
+- Run sidecar pre-check: `npm run check:sidecar`
+- Run full pre-checks: `npm run check:all`
 - Run tests: `npm test`
 - Run web build/type check: `npm run build`
 - Build desktop package: `npm run tauri:build`
@@ -60,12 +65,16 @@ Use these rules across IDE agents when executing tasks in this repository:
 - After route/layout/store architecture changes -> Update [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - After token/auth/gateway/WebSocket/command-event flow changes -> Update [docs/NODE_CONNECTION.md](docs/NODE_CONNECTION.md)
 - After task schema/approval/sidecar/activity flow changes -> Update [docs/TASK_EXECUTION.md](docs/TASK_EXECUTION.md)
-- After adding or removing pages/routes/directories -> Update the `## Project Structure` outline in [AGENTS.md](AGENTS.md)
 
 Documentation should reflect the actual implementation, not intended behavior.
 
 ### Formatting & Linting
 
+- Lint: `npm run lint`
+- Web build pre-check: `npm run check` / `npm run check:web`
+- Test pre-check: `npm run check:test`
+- Sidecar pre-check: `npm run check:sidecar`
+- Full pre-checks: `npm run check:all`
 - Test suite: `npm test`
 - Optional build + type check: `npm run build`
 - Sidecar TypeScript build check: `cd sidecar && npm run build`
@@ -99,6 +108,8 @@ Documentation should reflect the actual implementation, not intended behavior.
 
 ```text
 easy-openclaw/
+  ├── .husky/                          # Git hooks managed by Husky
+  │   └── pre-commit
   ├── src/                              # React frontend
   │   ├── App.tsx
   │   ├── main.tsx
@@ -178,6 +189,7 @@ easy-openclaw/
   ├── node_modules/                     # Root dependencies
   ├── package.json
   ├── package-lock.json
+  ├── biome.json
   ├── tailwind.config.ts
   ├── postcss.config.js
   ├── tsconfig.json
