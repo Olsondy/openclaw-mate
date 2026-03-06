@@ -3,6 +3,7 @@
 
 mod auth_client;
 mod config;
+mod device_identity;
 mod tray;
 mod ws_client;
 
@@ -35,6 +36,12 @@ async fn open_cloud_console(app: tauri::AppHandle, url: String) -> Result<(), St
     Ok(())
 }
 
+/// 获取（或生成）当前设备的 ed25519 身份信息，供前端在 verify 和 connect 时使用
+#[tauri::command]
+fn get_device_identity(app: tauri::AppHandle) -> Result<device_identity::DeviceIdentity, String> {
+    device_identity::load_or_create_device_identity(&app)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -42,6 +49,10 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             tray::setup_tray(app)?;
+            // 启动时预先生成（或加载）设备身份，确保 config.json 中始终有密钥对
+            if let Err(e) = device_identity::load_or_create_device_identity(app.handle()) {
+                eprintln!("[device_identity] 初始化失败: {}", e);
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -50,6 +61,7 @@ fn main() {
             auth_client::check_auth,
             ws_client::connect_gateway,
             ws_client::disconnect_gateway,
+            get_device_identity,
             open_cloud_console,
         ])
         .run(tauri::generate_context!())

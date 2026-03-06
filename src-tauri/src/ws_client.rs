@@ -45,6 +45,12 @@ struct AuthInfo {
 #[derive(Debug, Serialize)]
 struct DeviceInfo {
     id: String,
+    #[serde(rename = "publicKey")]
+    public_key: String,
+    signature: String,
+    #[serde(rename = "signedAt")]
+    signed_at: u64,
+    nonce: String,
     #[serde(rename = "displayName")]
     display_name: String,
 }
@@ -135,6 +141,8 @@ pub async fn connect_gateway(
     token: String,
     agent_id: String,
     device_name: String,
+    public_key_raw: Option<String>,
+    private_key_raw: Option<String>,
 ) -> Result<(), String> {
     let url = format!("{}?token={}", gateway_url, token);
 
@@ -152,6 +160,43 @@ pub async fn connect_gateway(
                     let mut sink = get_ws_sink().lock().await;
                     *sink = Some(write);
                 }
+
+                // 构造 device 签名（device 身份可选，无密钥则降级为无设备签名）
+                let device_info = if let (Some(pub_key), Some(priv_key)) =
+                    (&public_key_raw, &private_key_raw)
+                {
+                    use crate::device_identity::sign_payload;
+                    let signed_at = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis() as u64;
+                    let nonce = format!("{:016x}", rand::random::<u64>());
+                    // 签名 payload 格式与 openclaw buildDeviceAuthPayloadV3 一致
+                    let payload = format!(
+                        "{{\"deviceId\":\"{}\",\"clientId\":\"easy-openclaw\",\"clientMode\":\"backend\",\"role\":\"node\",\"scopes\":[\"node.execute\"],\"signedAtMs\":{},\"nonce\":\"{}\"}}",
+                        agent_id_clone, signed_at, nonce
+                    );
+                    let signature = sign_payload(priv_key, &payload)
+                        .unwrap_or_default();
+                    DeviceInfo {
+                        id: agent_id_clone.clone(),
+                        public_key: pub_key.clone(),
+                        signature,
+                        signed_at,
+                        nonce,
+                        display_name: device_name_clone.clone(),
+                    }
+                } else {
+                    // 降级：无签名（兼容旧版本，安全性较低）
+                    DeviceInfo {
+                        id: agent_id_clone.clone(),
+                        public_key: String::new(),
+                        signature: String::new(),
+                        signed_at: 0,
+                        nonce: String::new(),
+                        display_name: device_name_clone.clone(),
+                    }
+                };
 
                 // 发送 OpenClaw 标准 connect 握手帧
                 let connect_frame = ConnectFrame {
@@ -171,10 +216,7 @@ pub async fn connect_gateway(
                         auth: AuthInfo {
                             token: token_clone,
                         },
-                        device: DeviceInfo {
-                            id: agent_id_clone,
-                            display_name: device_name_clone,
-                        },
+                        device: device_info,
                     },
                 };
 

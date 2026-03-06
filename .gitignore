@@ -4,6 +4,9 @@ src-tauri/target/
 src-tauri/gen/
 sidecar/node_modules/
 sidecar/dist/
+.env
+.env.local
+.env.*.local
 .claude/settings.local.json
 cargo_check_output.txt
 check.bat
