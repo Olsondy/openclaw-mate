@@ -37,6 +37,11 @@ export interface ApprovalRules {
   vision: ApprovalMode
 }
 
+/** verify 接口返回的向导需求，true 表示该步骤尚未完成 */
+export interface BootstrapNeeds {
+  feishu?: boolean
+}
+
 /** 内存中的节点运行时配置（从服务端 verify 接口获取，不持久化） */
 export interface NodeRuntimeConfig {
   gatewayWsUrl: string
@@ -44,6 +49,9 @@ export interface NodeRuntimeConfig {
   gatewayToken: string
   agentId: string
   deviceName: string
+  authToken?: string
+  licenseId?: number
+  tenantUrl?: string
 }
 
 /** 用户授权信息（从服务端 verify 接口获取） */
@@ -58,6 +66,7 @@ export interface VerifyResponse {
   data: {
     nodeConfig: NodeRuntimeConfig
     userProfile: UserProfile
+    needsBootstrap?: BootstrapNeeds
   }
 }
 

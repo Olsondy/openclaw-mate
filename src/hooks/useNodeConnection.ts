@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { useConnectionStore, useConfigStore } from '../store'
+import { useConnectionStore, useConfigStore, useBootstrapStore } from '../store'
 import { useTauriEvent } from './useTauri'
 import type { VerifyResponse } from '../types'
 
@@ -10,7 +10,8 @@ import type { VerifyResponse } from '../types'
 
 export function useNodeConnection() {
   const { setStatus, setError } = useConnectionStore()
-  const { licenseKey, setRuntimeConfig, setUserProfile } = useConfigStore()
+  const { licenseKey, setRuntimeConfig, setUserProfile, setSessionMeta } = useConfigStore()
+  const { setNeeds } = useBootstrapStore()
 
   useTauriEvent('ws:connected', useCallback(() => setStatus('online'), [setStatus]))
   useTauriEvent('ws:disconnected', useCallback(() => setStatus('idle'), [setStatus]))
@@ -62,6 +63,18 @@ export function useNodeConnection() {
       setRuntimeConfig(nodeConfig)
       setUserProfile(userProfile)
 
+      if (nodeConfig.licenseId && nodeConfig.authToken) {
+        setSessionMeta({
+          licenseId: nodeConfig.licenseId,
+          authToken: nodeConfig.authToken,
+          tenantUrl: nodeConfig.tenantUrl ?? '',
+        })
+      }
+
+      if (result.data.needsBootstrap) {
+        setNeeds(result.data.needsBootstrap)
+      }
+
       setStatus('connecting')
 
       // 使用内存中的 Token 和 Gateway 地址连接
@@ -74,7 +87,7 @@ export function useNodeConnection() {
     } catch (e) {
       setError(String(e))
     }
-  }, [licenseKey, setStatus, setError, setRuntimeConfig, setUserProfile])
+  }, [licenseKey, setStatus, setError, setRuntimeConfig, setUserProfile, setSessionMeta, setNeeds])
 
   return { verifyAndConnect }
 }

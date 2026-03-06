@@ -1,14 +1,15 @@
 import { useState } from 'react'
-import { KeyRound, CheckCircle, AlertCircle, Loader2, ExternalLink, Shield } from 'lucide-react'
+import { KeyRound, CheckCircle, AlertCircle, Loader2, ExternalLink, Shield, MessageSquare } from 'lucide-react'
 import { TopBar } from '../components/layout/TopBar'
 import { Card, Button } from '../components/ui'
-import { useConfigStore, useConnectionStore } from '../store'
+import { useConfigStore, useConnectionStore, useBootstrapStore } from '../store'
 import { useNodeConnection } from '../hooks/useNodeConnection'
 
 export function SettingsPage() {
-  const { licenseKey, setLicenseKey, userProfile, runtimeConfig, approvalRules, setApprovalRule } = useConfigStore()
+  const { licenseKey, setLicenseKey, userProfile, runtimeConfig, approvalRules, setApprovalRule, licenseId } = useConfigStore()
   const { status, errorMessage } = useConnectionStore()
   const { verifyAndConnect } = useNodeConnection()
+  const { openWizard } = useBootstrapStore()
 
   const [localKey, setLocalKey] = useState(licenseKey)
 
@@ -108,6 +109,22 @@ export function SettingsPage() {
                 </div>
               )}
             </div>
+          </Card>
+        )}
+
+        {/* 飞书配置卡片（激活后始终显示） */}
+        {isOnline && licenseId && (
+          <Card>
+            <div className="flex items-center gap-2 mb-4">
+              <MessageSquare size={16} className="text-primary" />
+              <h2 className="text-sm font-semibold text-surface-on">飞书配置</h2>
+            </div>
+            <p className="text-xs text-surface-on-variant mb-3">
+              配置飞书 App ID 和 App Secret，以启用飞书消息通道。
+            </p>
+            <Button variant="outlined" onClick={openWizard}>
+              配置飞书
+            </Button>
           </Card>
         )}
 

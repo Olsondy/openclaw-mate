@@ -20,12 +20,17 @@ interface ConfigState {
   capabilities: Capabilities
   approvalRules: ApprovalRules
 
+  licenseId: number | null
+  authToken: string | null
+  tenantUrl: string
+
   setLicenseKey: (key: string) => void
   setRuntimeConfig: (config: NodeRuntimeConfig) => void
   setUserProfile: (profile: UserProfile) => void
   clearSession: () => void
   toggleCapability: (key: keyof Capabilities) => void
   setApprovalRule: (key: keyof ApprovalRules, mode: ApprovalRules[keyof ApprovalRules]) => void
+  setSessionMeta: (meta: { licenseId: number; authToken: string; tenantUrl: string }) => void
 }
 
 const defaultCapabilities: Capabilities = {
@@ -48,6 +53,9 @@ export const useConfigStore = create<ConfigState>()(
       userProfile: null,
       capabilities: defaultCapabilities,
       approvalRules: defaultApprovalRules,
+      licenseId: null,
+      authToken: null,
+      tenantUrl: '',
 
       setLicenseKey: (licenseKey) => set({ licenseKey }),
 
@@ -56,7 +64,7 @@ export const useConfigStore = create<ConfigState>()(
       setUserProfile: (userProfile) => set({ userProfile }),
 
       /** 清除内存中的 Session（但保留 licenseKey） */
-      clearSession: () => set({ runtimeConfig: null, userProfile: null }),
+      clearSession: () => set({ runtimeConfig: null, userProfile: null, licenseId: null, authToken: null }),
 
       toggleCapability: (key) =>
         set((state) => ({
@@ -67,6 +75,9 @@ export const useConfigStore = create<ConfigState>()(
         set((state) => ({
           approvalRules: { ...state.approvalRules, [key]: mode },
         })),
+
+      setSessionMeta: ({ licenseId, authToken, tenantUrl }) =>
+        set({ licenseId, authToken, tenantUrl }),
     }),
     {
       name: 'easy-openclaw-settings',
