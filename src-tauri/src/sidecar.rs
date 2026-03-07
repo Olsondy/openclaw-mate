@@ -48,6 +48,7 @@ type PendingMap = Arc<Mutex<HashMap<String, oneshot::Sender<SidecarResult>>>>;
 pub struct SidecarManager {
     stdin: Arc<Mutex<tokio::process::ChildStdin>>,
     pending: PendingMap,
+    child: Arc<Mutex<tokio::process::Child>>,
 }
 
 impl SidecarManager {
@@ -90,9 +91,14 @@ impl SidecarManager {
             }
         });
 
-        tokio::spawn(async move { child.wait().await });
+        let child = Arc::new(Mutex::new(child));
 
-        Ok(Self { stdin, pending })
+        Ok(Self { stdin, pending, child })
+    }
+
+    pub async fn kill(&self) {
+        let mut c = self.child.lock().await;
+        let _ = c.kill().await;
     }
 
     pub async fn execute(&self, task: SidecarTask) -> Result<SidecarResult, String> {
@@ -153,6 +159,7 @@ mod tests {
             .await
             .expect("sidecar spawn failed");
         mgr.ping().await.expect("ping failed");
+        mgr.kill().await;
     }
 
     #[tokio::test]
@@ -168,5 +175,27 @@ mod tests {
         };
         let result = mgr.execute(task).await.expect("execute failed");
         assert_eq!(result.status, "success");
+        mgr.kill().await;
+    }
+
+    #[tokio::test]
+    async fn test_execute_browser_navigate() {
+        let mgr = SidecarManager::spawn("node", &["../sidecar/dist/index.js"])
+            .await
+            .expect("spawn failed");
+        let task = SidecarTask {
+            task_id: "b1".to_string(),
+            task_type: "browser".to_string(),
+            payload: serde_json::json!({
+                "command": "browser.navigate",
+                "url": "data:text/html,<title>Test</title><h1>hello</h1>"
+            }),
+            timeout_ms: 60000,
+        };
+        let result = mgr.execute(task).await.expect("execute failed");
+        assert_eq!(result.status, "success");
+        let title = result.result.unwrap();
+        assert!(title.get("title").is_some());
+        mgr.kill().await;
     }
 }
