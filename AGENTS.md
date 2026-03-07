@@ -23,19 +23,18 @@ The main code split is:
 
 ## Development Commands
 
-- Install root dependencies: `npm install`
-- Install sidecar dependencies: `cd sidecar && npm install`
-- Start frontend dev server: `npm run dev`
-- Start desktop app in dev mode: `npm run tauri:dev`
-- Run lint: `npm run lint`
-- Run web build pre-check: `npm run check` / `npm run check:web`
-- Run test pre-check: `npm run check:test`
-- Run sidecar pre-check: `npm run check:sidecar`
-- Run full pre-checks: `npm run check:all`
-- Run tests: `npm test`
-- Run web build/type check: `npm run build`
-- Build desktop package: `npm run tauri:build`
-- Build sidecar TypeScript output: `cd sidecar && npm run build`
+- Install workspace dependencies (root + sidecar): `pnpm install`
+- Start frontend dev server: `pnpm run dev`
+- Start desktop app in dev mode: `pnpm run tauri:dev`
+- Run lint: `pnpm run lint`
+- Run web build pre-check: `pnpm run check` / `pnpm run check:web`
+- Run test pre-check: `pnpm run check:test`
+- Run sidecar pre-check: `pnpm run check:sidecar`
+- Run full pre-checks: `pnpm run check:all`
+- Run tests: `pnpm test`
+- Run web build/type check: `pnpm run build`
+- Build desktop package: `pnpm run tauri:build`
+- Build sidecar TypeScript output: `pnpm --filter openclaw-sidecar run build`
 
 ## Code Standards
 
@@ -70,15 +69,15 @@ Documentation should reflect the actual implementation, not intended behavior.
 
 ### Formatting & Linting
 
-- Lint: `npm run lint`
-- Web build pre-check: `npm run check` / `npm run check:web`
-- Test pre-check: `npm run check:test`
-- Sidecar pre-check: `npm run check:sidecar`
-- Full pre-checks: `npm run check:all`
-- Test suite: `npm test`
-- Optional build + type check: `npm run build`
-- Sidecar TypeScript build check: `cd sidecar && npm run build`
-- End-to-end runtime check (manual): `npm run tauri:dev`
+- Lint: `pnpm run lint`
+- Web build pre-check: `pnpm run check` / `pnpm run check:web`
+- Test pre-check: `pnpm run check:test`
+- Sidecar pre-check: `pnpm run check:sidecar`
+- Full pre-checks: `pnpm run check:all`
+- Test suite: `pnpm test`
+- Optional build + type check: `pnpm run build`
+- Sidecar TypeScript build check: `pnpm --filter openclaw-sidecar run build`
+- End-to-end runtime check (manual): `pnpm run tauri:dev`
 
 ### API & Frontend Guardrails
 
@@ -168,7 +167,6 @@ easy-openclaw/
   │   └── icons/                        # App icon assets (omitted for brevity)
   ├── sidecar/                          # Node.js execution sidecar
   │   ├── package.json
-  │   ├── package-lock.json
   │   ├── tsconfig.json
   │   └── src/
   │      ├── index.ts
@@ -188,7 +186,8 @@ easy-openclaw/
   ├── dist/                             # Frontend build output
   ├── node_modules/                     # Root dependencies
   ├── package.json
-  ├── package-lock.json
+  ├── pnpm-workspace.yaml
+  ├── pnpm-lock.yaml
   ├── biome.json
   ├── tailwind.config.ts
   ├── postcss.config.js

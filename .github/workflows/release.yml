@@ -32,11 +32,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -58,12 +64,8 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      - name: Install frontend dependencies
-        run: npm install
-
-      - name: Install sidecar dependencies
-        working-directory: sidecar
-        run: npm install
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build and publish release
         uses: tauri-apps/tauri-action@v0

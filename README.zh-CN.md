@@ -132,26 +132,33 @@ openclaw-exec/
 |------|----------|
 | Node.js | ≥ 18.x |
 | Rust + Cargo | 最新稳定版 |
-| npm / pnpm | 任意 |
+| pnpm | ≥ 10.x |
 
 ### 开发调试
 
 ```bash
-# 安装前端依赖
-npm install
+# 安装 workspace 依赖（根目录 + sidecar）
+pnpm install
 
 # 初始化环境变量配置
 cp .env.example .env
 # 如果你的 tenant API 不是运行在 localhost:3000，请修改 .env 中的地址
 
 # 启动 Vite 开发服务器 + Tauri 桌面窗口
-npm run tauri:dev
+pnpm run tauri:dev
 ```
 
 ### 生产构建
 
 ```bash
-npm run tauri:build
+pnpm run tauri:build
+```
+
+### 常用检查命令
+
+```bash
+pnpm run check
+pnpm run check:all
 ```
 
 > 构建产物（安装包）位于 `src-tauri/target/release/bundle/`。

@@ -132,26 +132,33 @@ openclaw-exec/
 |------|---------|
 | Node.js | ≥ 18.x |
 | Rust + Cargo | latest stable |
-| npm / pnpm | any |
+| pnpm | ≥ 10.x |
 
 ### Development
 
 ```bash
-# Install frontend dependencies
-npm install
+# Install workspace dependencies (root + sidecar)
+pnpm install
 
 # Initialize environment variables
 cp .env.example .env
 # Edit .env if your tenant API is not hosted at localhost:3000
 
 # Start Vite dev server + Tauri desktop window
-npm run tauri:dev
+pnpm run tauri:dev
 ```
 
 ### Production Build
 
 ```bash
-npm run tauri:build
+pnpm run tauri:build
+```
+
+### Common Check Commands
+
+```bash
+pnpm run check
+pnpm run check:all
 ```
 
 > Build artifacts (installers) are located at `src-tauri/target/release/bundle/`.
