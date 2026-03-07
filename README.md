@@ -87,11 +87,22 @@ User enters licenseKey in Settings
 Gateway pushes { type: "req", method: "node.invoke",
                  payload: { command, args } }
   ├── system.run → Rust executes local shell command directly
-  └── browser / vision (planned) → stdin IPC → Node.js Sidecar subprocess
-                                               → stdout IPC returns result
+  └── browser.* / vision.* → stdin IPC → Node.js Sidecar subprocess
+                                        → stdout IPC returns result
   → Rust responds { type: "res", ok, payload: { stdout, stderr, exitCode, durationMs } }
   → AI Agent receives execution feedback
 ```
+
+### Supported Commands
+
+| Command | Handler | Status |
+|---------|---------|--------|
+| `system.run` | Rust (direct) | ✅ Implemented |
+| `browser.navigate` | Node.js sidecar · Playwright | ✅ Implemented |
+| `browser.screenshot` | Node.js sidecar · Playwright | ✅ Implemented |
+| `browser.click` | Node.js sidecar · Playwright | ✅ Implemented |
+| `browser.type` | Node.js sidecar · Playwright | ✅ Implemented |
+| `vision.screenshot` | Node.js sidecar · Playwright | ✅ Implemented |
 
 ---
 

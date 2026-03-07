@@ -87,11 +87,22 @@
 Gateway 推送 { type: "req", method: "node.invoke",
                payload: { command, args } }
   ├── system.run → Rust 直接执行本地 shell 命令
-  └── browser / vision（规划中）→ stdin IPC → Sidecar 子进程（Node.js）
-                                              → stdout IPC 回传结果
+  └── browser.* / vision.* → stdin IPC → Sidecar 子进程（Node.js）
+                                        → stdout IPC 回传结果
   → Rust 回传 { type: "res", ok, payload: { stdout, stderr, exitCode, durationMs } }
   → AI Agent 收到执行反馈
 ```
+
+### 支持的命令
+
+| 命令 | 执行层 | 状态 |
+|------|--------|------|
+| `system.run` | Rust（直接执行） | ✅ 已实现 |
+| `browser.navigate` | Node.js sidecar · Playwright | ✅ 已实现 |
+| `browser.screenshot` | Node.js sidecar · Playwright | ✅ 已实现 |
+| `browser.click` | Node.js sidecar · Playwright | ✅ 已实现 |
+| `browser.type` | Node.js sidecar · Playwright | ✅ 已实现 |
+| `vision.screenshot` | Node.js sidecar · Playwright | ✅ 已实现 |
 
 ---
 
