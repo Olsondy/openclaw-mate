@@ -8,7 +8,11 @@ mod sidecar;
 mod tray;
 mod ws_client;
 
+use std::sync::Arc;
+
 use tauri::{Emitter, Manager};
+
+use crate::sidecar::SidecarManager;
 
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
@@ -69,9 +73,23 @@ fn main() {
             if let Err(e) = device_identity::load_or_create_device_identity(app.handle()) {
                 eprintln!("[device_identity] 初始化失败: {}", e);
             }
-            // 后台静默检查更新
+
             let handle = app.handle().clone();
+            // Single spawn: sidecar startup and update check run sequentially to avoid
+            // two handle clones. Sidecar startup is non-blocking for the main thread.
             tauri::async_runtime::spawn(async move {
+                // Spawn sidecar
+                match SidecarManager::spawn("node", &["sidecar/dist/index.js"]).await {
+                    Ok(mgr) => {
+                        handle.manage(Arc::new(mgr));
+                        eprintln!("[sidecar] ready");
+                    }
+                    Err(e) => {
+                        eprintln!("[sidecar] failed to start: {}", e);
+                        handle.emit("sidecar:error", e).ok();
+                    }
+                }
+                // Background update check
                 use tauri_plugin_updater::UpdaterExt;
                 match handle.updater() {
                     Ok(updater) => match updater.check().await {
@@ -84,6 +102,7 @@ fn main() {
                     Err(e) => eprintln!("[updater] 初始化失败: {}", e),
                 }
             });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
