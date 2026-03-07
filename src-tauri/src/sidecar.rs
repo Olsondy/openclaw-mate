@@ -39,6 +39,10 @@ struct IpcResponse {
     data: Option<SidecarResult>,
 }
 
+const MSG_TYPE_RESULT: &str = "result";
+const MSG_TYPE_EXECUTE: &str = "execute";
+const MSG_TYPE_PING: &str = "ping";
+
 type PendingMap = Arc<Mutex<HashMap<String, oneshot::Sender<SidecarResult>>>>;
 
 pub struct SidecarManager {
@@ -63,15 +67,24 @@ impl SidecarManager {
         let pending_reader = pending.clone();
         tokio::spawn(async move {
             let mut lines = BufReader::new(stdout).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                if let Ok(resp) = serde_json::from_str::<IpcResponse>(&line) {
-                    if resp.msg_type == "result" {
-                        if let Some(result) = resp.data {
-                            let mut map = pending_reader.lock().await;
-                            if let Some(tx) = map.remove(&result.task_id) {
-                                tx.send(result).ok();
+            loop {
+                match lines.next_line().await {
+                    Ok(Some(line)) => {
+                        if let Ok(resp) = serde_json::from_str::<IpcResponse>(&line) {
+                            if resp.msg_type == MSG_TYPE_RESULT {
+                                if let Some(result) = resp.data {
+                                    let mut map = pending_reader.lock().await;
+                                    if let Some(tx) = map.remove(&result.task_id) {
+                                        tx.send(result).ok();
+                                    }
+                                }
                             }
                         }
+                    }
+                    Ok(None) => break, // EOF
+                    Err(e) => {
+                        eprintln!("[sidecar] reader error: {}", e);
+                        break;
                     }
                 }
             }
@@ -86,17 +99,28 @@ impl SidecarManager {
         let (tx, rx) = oneshot::channel();
         self.pending.lock().await.insert(task.task_id.clone(), tx);
         self.write_msg(IpcMessage {
-            msg_type: "execute".to_string(),
-            data: Some(task),
+            msg_type: MSG_TYPE_EXECUTE.to_string(),
+            data: Some(task.clone()),
         })
         .await?;
-        rx.await
-            .map_err(|_| "sidecar result channel closed".to_string())
+        let timeout_dur = std::time::Duration::from_millis(task.timeout_ms);
+        match tokio::time::timeout(timeout_dur, rx).await {
+            Ok(Ok(result)) => Ok(result),
+            Ok(Err(_)) => Err("sidecar result channel closed".to_string()),
+            Err(_) => {
+                // timeout — clean up pending entry to avoid leak
+                self.pending.lock().await.remove(&task.task_id);
+                Err(format!(
+                    "sidecar task {} timed out after {}ms",
+                    task.task_id, task.timeout_ms
+                ))
+            }
+        }
     }
 
     pub async fn ping(&self) -> Result<(), String> {
         self.write_msg(IpcMessage {
-            msg_type: "ping".to_string(),
+            msg_type: MSG_TYPE_PING.to_string(),
             data: None,
         })
         .await
@@ -116,6 +140,12 @@ impl SidecarManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn test_spawn_fails_gracefully() {
+        let result = SidecarManager::spawn("nonexistent_program_xyz", &[]).await;
+        assert!(result.is_err());
+    }
 
     #[tokio::test]
     async fn test_ping() {
