@@ -1,7 +1,9 @@
 <div align="center">
   <img src="./docs/logo.svg" alt="OpenClaw Logo" width="160"/>
-  <h1>OpenClaw Node（openclaw-exec）</h1>
-  <p>多租户私有化平台的桌面执行节点</p>
+  <h1>OpenClaw Node (openclaw-exec)</h1>
+  <p>Desktop execution node for the multi-tenant self-hosted platform</p>
+
+  **English** | [简体中文](./README.zh-CN.md)
 </div>
 
 ![Tauri](https://img.shields.io/badge/Tauri-2.0-24C8DB?logo=tauri)
@@ -9,156 +11,158 @@
 ![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC?logo=tailwind-css)
 
-## 简介
+## Introduction
 
-**openclaw-exec** 是 Easy OpenClaw 多租户平台的**桌面端执行节点**，基于 Tauri 2 + React 18 构建。
+**openclaw-exec** is the **desktop execution node** of the Easy OpenClaw multi-tenant platform, built on Tauri 2 + React 18.
 
-每个获得授权的用户在本地运行一个 exec 实例，它负责：
-1. 向 **openclaw-tenant** 进行 License 激活（HWID 绑定 + 获取网关配置）
-2. 通过 WebSocket 长连接至用户**专属** openclaw Gateway 实例（由 tenant 动态创建的 Docker/Podman 容器）
-3. 接收云端 AI Agent 下发的任务并在本地执行，将执行结果回传
+Each authorized user runs one exec instance locally, responsible for:
+1. Performing License activation against **openclaw-tenant** (HWID binding + retrieving gateway config)
+2. Maintaining a persistent WebSocket connection to the user's **dedicated** openclaw Gateway instance (a Docker/Podman container dynamically created by tenant)
+3. Receiving tasks dispatched by cloud AI Agents, executing them locally, and returning results
 
-> **1 个 License = 1 个 Gateway 容器 = 1 个 exec 客户端**，三者一一对应，互相隔离。
+> **1 License = 1 Gateway container = 1 exec client** — one-to-one mapping, fully isolated.
 
 ---
 
-## 🏗️ 在整体架构中的位置
+## 🏗️ Position in the Overall Architecture
 
 ```
-服务端（自托管）
-├── openclaw-tenant（控制平面）── 管理 License / 编排容器
-└── openclaw Gateway A/B/C（容器）── 每用户独享，端口隔离
+Server (self-hosted)
+├── openclaw-tenant (control plane) ── manages Licenses / orchestrates containers
+└── openclaw Gateway A/B/C (containers) ── per-user dedicated, port-isolated
                 △
-                │ wss:// 长连接（WebSocket）
+                │ wss:// persistent connection (WebSocket)
                 │
-客户端（用户本地）
-└── openclaw-exec（本模块）── 桌面应用，执行本地任务
+Client (user's local machine)
+└── openclaw-exec (this module) ── desktop app, executes local tasks
         ↑
-        │ ① 首次激活 POST /api/verify → tenant
-        │   返回 gatewayUrl / gatewayToken / licenseId
+        │ ① First activation: POST /api/verify → tenant
+        │   Returns gatewayUrl / gatewayToken / licenseId
         │
-        │ ② wss:// 连接对应 Gateway，发送 connect 握手帧
-        │   接收 node.invoke 指令 → 本地执行 → 回传结果
+        │ ② wss:// connects to dedicated Gateway, sends connect handshake frame
+        │   Receives node.invoke instructions → executes locally → returns result
 ```
 
-详细架构请参考父仓库 [README](../README.md)。
+For full architecture details, see the parent repo [README](../README.md).
 
 ---
 
-## 🔄 关键交互流程
+## 🔄 Key Interaction Flows
 
-### ① License 激活（首次运行）
+### ① License Activation (first run)
 
 ```
-用户输入 licenseKey
+User enters licenseKey in Settings
   → [Rust auth_client] POST /api/verify
-      { hwid, licenseKey, deviceName, publicKey }
+      { hwid, licenseKey, deviceName, publicKey? }
       ↓
-  Tenant 校验并返回：
-      { gatewayUrl, gatewayToken, agentId, licenseId }
+  Tenant validates and returns:
+      { success, data: { nodeConfig: { gatewayUrl, gatewayToken, gatewayWebUI,
+                                       agentId, deviceName, licenseId, tenantUrl },
+                         userProfile, needsBootstrap } }
       ↓
-  exec 持久化至本地 config.json
+  exec persists nodeConfig to local config.json
+  → auto-connects to gatewayUrl using gatewayToken
 ```
 
-### ② Gateway 长连接
+> `gatewayToken` is auto-rotated by tenant on each verify call when expired (TTL configurable, default 30 days). exec re-verifies transparently on next startup.
+
+### ② Gateway Persistent Connection
 
 ```
-[Rust ws_client] 读取 config.json
-  → 建立 wss:// 至专属 Gateway 实例
-  → 发送 connect 握手帧：
-      { role: "node", scopes: ["node.execute"], device: { publicKey, signature } }
-  → Gateway 校验 paired.json 中的 deviceId
-  → 连接成功 → React UI 展示在线状态
+[Rust ws_client] reads gatewayUrl + gatewayToken from config.json
+  → establishes wss://gatewayUrl?token=gatewayToken
+  → sends connect handshake frame:
+      { type: "req", method: "connect",
+        params: { role: "node", scopes: ["node.execute"],
+                  auth: { token }, device: { id, publicKey, signature, ... } } }
+  → Gateway validates device identity against paired.json
+  → responds { type: "res", ok: true } + optional deviceToken
+  → React UI shows online status
 ```
 
-### ③ 任务执行
+### ③ Task Execution
 
 ```
-Gateway 推送 node.invoke { command, args }
-  ├── 简单命令（system.run）→ Rust 直接执行本地 shell
-  └── 高阶任务（browser / vision）→ stdin IPC → Sidecar 子进程（Node.js）
-                                              → stdout IPC 回传结果
-  → 结果回传 Gateway → AI Agent 收到执行反馈
-```
-
-### ④ gatewayToken 自动轮换
-
-```
-Token 到期后，下次 POST /api/verify 时：
-  Tenant 自动生成新 gatewayToken → 写入 DB + openclaw.json
-  exec 无感知地使用新 token（用户无需手动操作）
+Gateway pushes { type: "req", method: "node.invoke",
+                 payload: { command, args } }
+  ├── system.run → Rust executes local shell command directly
+  └── browser / vision (planned) → stdin IPC → Node.js Sidecar subprocess
+                                               → stdout IPC returns result
+  → Rust responds { type: "res", ok, payload: { stdout, stderr, exitCode, durationMs } }
+  → AI Agent receives execution feedback
 ```
 
 ---
 
-## 🛠️ 技术栈
+## 🛠️ Tech Stack
 
-| 层级 | 技术 |
-|------|------|
-| **UI 前端** | React 18 · React Router v6 · Zustand · Tailwind CSS · Vite |
-| **Rust 核心层** | Tauri v2 · Tokio · Tokio-Tungstenite · Reqwest · ed25519-dalek |
-| **安全身份** | ed25519 密钥对（本地生成持久化）· SHA-256 deviceId 派生 |
-| **Sidecar** | Node.js 子进程（browser / system / vision 高阶任务） |
+| Layer | Technology |
+|-------|-----------|
+| **UI Frontend** | React 18 · React Router v6 · Zustand · Tailwind CSS · Vite |
+| **Rust Core** | Tauri v2 · Tokio · Tokio-Tungstenite · Reqwest · ed25519-dalek |
+| **Security Identity** | ed25519 key pair (locally generated & persisted) · SHA-256 deviceId derivation |
+| **Sidecar** | Node.js subprocess (browser / system / vision advanced tasks) |
 
 ---
 
-## 📂 项目结构
+## 📂 Project Structure
 
 ```text
 openclaw-exec/
-├── src/                 # React 前端源码（UI / 状态管理 / 页面）
-├── src-tauri/           # Tauri Rust 核心层
+├── src/                 # React frontend (UI / state / pages)
+├── src-tauri/           # Tauri Rust core layer
 │   └── src/
-│       ├── auth_client.rs   # POST /api/verify 激活逻辑
-│       ├── ws_client.rs     # WebSocket Gateway 长连接
-│       ├── device_identity.rs  # ed25519 密钥对 & deviceId 派生
-│       ├── config.rs        # 本地 config.json 持久化
-│       └── main.rs          # Tauri 命令注册 & 应用入口
-├── sidecar/             # Node.js 子进程（高阶任务处理）
+│       ├── auth_client.rs      # POST /api/verify activation logic
+│       ├── ws_client.rs        # WebSocket Gateway persistent connection
+│       ├── device_identity.rs  # ed25519 key pair & deviceId derivation
+│       ├── config.rs           # local config.json persistence
+│       └── main.rs             # Tauri command registration & app entry
+├── sidecar/             # Node.js subprocess (advanced task handling)
 └── package.json
 ```
 
 ---
 
-## 🚀 快速开始
+## 🚀 Getting Started
 
-### 运行环境要求
+### Prerequisites
 
-| 工具 | 版本要求 |
-|------|----------|
+| Tool | Version |
+|------|---------|
 | Node.js | ≥ 18.x |
-| Rust + Cargo | 最新稳定版 |
-| npm / pnpm | 任意 |
+| Rust + Cargo | latest stable |
+| npm / pnpm | any |
 
-### 开发调试
+### Development
 
 ```bash
-# 安装前端依赖
+# Install frontend dependencies
 npm install
 
-# 启动 Vite 开发服务器 + Tauri 桌面窗口
+# Start Vite dev server + Tauri desktop window
 npm run tauri:dev
 ```
 
-### 生产构建
+### Production Build
 
 ```bash
 npm run tauri:build
 ```
 
-> 构建产物（安装包）位于 `src-tauri/target/release/bundle/`。
+> Build artifacts (installers) are located at `src-tauri/target/release/bundle/`.
 
 ---
 
-## ⚙️ 使用方式
+## ⚙️ Usage
 
-1. 从 **openclaw-tenant** 管理后台创建 License，获取 `licenseKey`
-2. 在 exec 设置页面输入 `licenseKey`，点击激活
-3. 激活成功后自动连接专属 Gateway，React UI 显示在线状态
-4. 云端 AI Agent 即可通过该节点下发本地执行任务
+1. Create a License in the **openclaw-tenant** admin panel to obtain a `token`
+2. Enter the `token` and endpoint URLs on the exec Settings page, then click Activate
+3. After activation, the node automatically connects to the dedicated Gateway and shows online status
+4. Cloud AI Agents can now dispatch local execution tasks through this node
 
 ---
 
-## 📄 许可证
+## 📄 License
 
-本项目采用 [MIT License](LICENSE) 许可协议。
+This project is licensed under the [MIT License](LICENSE).

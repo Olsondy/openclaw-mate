@@ -2,7 +2,8 @@ import { TopBar } from '../components/layout/TopBar'
 import { Card } from '../components/ui'
 import { useConnectionStore, useTasksStore } from '../store'
 import { useNodeConnection } from '../hooks/useNodeConnection'
-import { CheckCircle2, AlertCircle, Clock, PauseCircle, HelpCircle, AlertTriangle, ArrowRight, ClipboardList, Percent } from 'lucide-react'
+import { useUpdater } from '../hooks/useUpdater'
+import { CheckCircle2, AlertCircle, Clock, PauseCircle, HelpCircle, AlertTriangle, ArrowRight, ClipboardList, Percent, Download } from 'lucide-react'
 
 const statusLabel: Record<string, string> = {
   online: '在线',
@@ -30,6 +31,7 @@ export function DashboardPage() {
   const { status, onlineAt, errorMessage } = useConnectionStore()
   const { pendingApprovals, getStats } = useTasksStore()
   const { verifyAndConnect } = useNodeConnection()
+  const { newVersion, installing, installUpdate } = useUpdater()
   const stats = getStats()
 
   const uptime = onlineAt
@@ -40,6 +42,24 @@ export function DashboardPage() {
     <>
       <TopBar title="Dashboard" subtitle="Node status and real-time activity" />
       <div className="flex-1 overflow-auto p-6 space-y-4">
+
+        {newVersion && (
+          <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-primary/10 border border-primary/30">
+            <div className="flex items-center gap-2">
+              <Download size={16} className="text-primary" />
+              <span className="text-sm text-surface-on">
+                发现新版本 <span className="font-semibold">{newVersion}</span> 可用
+              </span>
+            </div>
+            <button
+              onClick={installUpdate}
+              disabled={installing}
+              className="px-3 py-1 text-xs rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {installing ? '安装中...' : '立即更新'}
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-4">
           <Card elevated>
