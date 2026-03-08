@@ -4,17 +4,19 @@ import { useConfigStore } from './config.store'
 describe('useConfigStore', () => {
   beforeEach(() => {
     useConfigStore.setState({
-      config: { token: '', machine_id: '', auth_endpoint: '', gateway_endpoint: '', cloud_console_url: '' },
+      licenseKey: '',
+      runtimeConfig: null,
+      userProfile: null,
       capabilities: { browser: true, system: false, vision: true },
       approvalRules: { browser: 'sensitive_only', system: 'always', vision: 'never' },
+      licenseId: null,
     })
   })
 
-  it('setToken updates token immutably', () => {
+  it('setLicenseKey updates license key', () => {
     const { result } = renderHook(() => useConfigStore())
-    act(() => result.current.setToken('test-token-123'))
-    expect(result.current.config.token).toBe('test-token-123')
-    expect(result.current.config.auth_endpoint).toBe('')
+    act(() => result.current.setLicenseKey('test-license-key'))
+    expect(result.current.licenseKey).toBe('test-license-key')
   })
 
   it('toggleCapability flips the value', () => {

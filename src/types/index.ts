@@ -40,11 +40,12 @@ export interface ApprovalRules {
 /** verify 接口返回的向导需求，true 表示该步骤尚未完成 */
 export interface BootstrapNeeds {
   feishu?: boolean
+  modelAuth?: boolean
 }
 
 /** 内存中的节点运行时配置（从服务端 verify 接口获取，不持久化） */
 export interface NodeRuntimeConfig {
-  gatewayWsUrl: string
+  gatewayUrl: string
   gatewayWebUI: string
   gatewayToken: string
   agentId: string

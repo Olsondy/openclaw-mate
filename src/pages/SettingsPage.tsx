@@ -4,6 +4,7 @@ import { TopBar } from '../components/layout/TopBar'
 import { Card, Button } from '../components/ui'
 import { useConfigStore, useConnectionStore, useBootstrapStore } from '../store'
 import { useNodeConnection } from '../hooks/useNodeConnection'
+import { ApiWizard } from '../components/features/wizard/ApiWizard'
 
 export function SettingsPage() {
   const { licenseKey, setLicenseKey, userProfile, runtimeConfig, approvalRules, setApprovalRule, licenseId } = useConfigStore()
@@ -12,6 +13,7 @@ export function SettingsPage() {
   const { openWizard } = useBootstrapStore()
 
   const [localKey, setLocalKey] = useState(licenseKey)
+  const [apiWizardOpen, setApiWizardOpen] = useState(false)
 
   const isLoading = status === 'auth_checking' || status === 'connecting'
   const isOnline = status === 'online'
@@ -128,6 +130,21 @@ export function SettingsPage() {
           </Card>
         )}
 
+        {isOnline && licenseId && (
+          <Card>
+            <div className="flex items-center gap-2 mb-4">
+              <KeyRound size={16} className="text-primary" />
+              <h2 className="text-sm font-semibold text-surface-on">模型 API 配置</h2>
+            </div>
+            <p className="text-xs text-surface-on-variant mb-3">
+              手动覆盖节点当前模型配置，不会写回租户服务数据库。
+            </p>
+            <Button variant="outlined" onClick={() => setApiWizardOpen(true)}>
+              打开配置向导
+            </Button>
+          </Card>
+        )}
+
         {/* 审批规则卡片 */}
         <Card>
           <div className="flex items-center gap-2 mb-4">
@@ -153,6 +170,16 @@ export function SettingsPage() {
         </Card>
 
       </div>
+      {apiWizardOpen && licenseId && (
+        <ApiWizard
+          licenseId={licenseId}
+          onSuccess={() => {
+            setApiWizardOpen(false)
+            verifyAndConnect()
+          }}
+          onClose={() => setApiWizardOpen(false)}
+        />
+      )}
     </>
   )
 }

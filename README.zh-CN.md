@@ -54,7 +54,7 @@
 ```
 用户在 Settings 输入 licenseKey
   → [Rust auth_client] POST /api/verify
-      { hwid, licenseKey, deviceName, publicKey? }
+      { hwid, licenseKey, deviceName, publicKey }
       ↓
   Tenant 校验并返回：
       { success, data: { nodeConfig: { gatewayUrl, gatewayToken, gatewayWebUI,
@@ -103,6 +103,23 @@ Gateway 推送 { type: "req", method: "node.invoke",
 | `browser.click` | Node.js sidecar · Playwright | ✅ 已实现 |
 | `browser.type` | Node.js sidecar · Playwright | ✅ 已实现 |
 | `vision.screenshot` | Node.js sidecar · Playwright | ✅ 已实现 |
+
+---
+
+## 🆕 最新补充（tenant 契约对齐 + API 向导）
+
+- **verify 契约对齐 tenant**：
+  - `hwid` 使用 `device_identity.device_id`
+  - verify 请求上报 `deviceName` 与 `publicKey`
+  - 消费 tenant 返回的 `nodeConfig.gatewayUrl` 字段用于连接
+- **新增模型 API 配置向导（后置手动入口）**：
+  - 入口位于 Settings 页面
+  - 严格 provider 下拉选择，`modelId/modelName/apiKey` 必填
+  - 默认空值不预填
+  - 提交到 `POST /api/licenses/:id/bootstrap-config` 的 `modelAuth`
+  - 该覆盖配置仅写入节点配置文件，不在 tenant 服务侧持久化
+- **飞书向导 HWID 来源同步更新**：
+  - 使用 `device_identity.device_id`，与 verify 一致
 
 ---
 

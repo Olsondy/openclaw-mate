@@ -54,7 +54,7 @@ For full architecture details, see the parent repo [README](../README.md).
 ```
 User enters licenseKey in Settings
   → [Rust auth_client] POST /api/verify
-      { hwid, licenseKey, deviceName, publicKey? }
+      { hwid, licenseKey, deviceName, publicKey }
       ↓
   Tenant validates and returns:
       { success, data: { nodeConfig: { gatewayUrl, gatewayToken, gatewayWebUI,
@@ -103,6 +103,23 @@ Gateway pushes { type: "req", method: "node.invoke",
 | `browser.click` | Node.js sidecar · Playwright | ✅ Implemented |
 | `browser.type` | Node.js sidecar · Playwright | ✅ Implemented |
 | `vision.screenshot` | Node.js sidecar · Playwright | ✅ Implemented |
+
+---
+
+## 🆕 Recent Update (Tenant Contract Alignment + API Wizard)
+
+- **verify contract aligned with tenant**:
+  - `hwid` now uses `device_identity.device_id`
+  - verify request reports both `deviceName` and `publicKey`
+  - client consumes tenant `nodeConfig.gatewayUrl` for WebSocket connection
+- **Added Model API configuration wizard (manual, post-activation)**:
+  - Entry is available on the Settings page
+  - Strict provider dropdown, required `modelId/modelName/apiKey`
+  - Defaults are intentionally empty (no prefill)
+  - Submits `modelAuth` to `POST /api/licenses/:id/bootstrap-config`
+  - Override is file-only on node side; it is not persisted in tenant service DB
+- **Feishu wizard HWID source is now consistent**:
+  - Uses `device_identity.device_id`, same as verify flow
 
 ---
 

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Loader2, MessageSquare } from 'lucide-react'
+import { invoke } from '@tauri-apps/api/core'
 import { Button, Card } from '../../ui'
 import { useConfigStore } from '../../../store'
 
@@ -20,20 +21,18 @@ export function FeishuWizard({ licenseId, onSuccess, onClose }: Props) {
 
   const canSubmit = appId.trim().length > 0 && appSecret.trim().length > 0
 
-  // 使用 localStorage 中的 machine_id 作为 hwid（与 verify 时一致）
-  const hwid = localStorage.getItem('machine_id') ?? ''
-
   const handleSubmit = async () => {
     if (!canSubmit) return
     setLoading(true)
     setError(null)
     try {
+      const identity = await invoke<{ device_id: string }>('get_device_identity')
       const res = await fetch(`${TENANT_API_BASE}/api/licenses/${licenseId}/bootstrap-config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           licenseKey,
-          hwid,
+          hwid: identity.device_id,
           feishu: { appId: appId.trim(), appSecret: appSecret.trim() },
         }),
       })
