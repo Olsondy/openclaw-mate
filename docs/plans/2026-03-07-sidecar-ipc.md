@@ -33,7 +33,7 @@ The sidecar IPC protocol (stdin/stdout JSON lines) is already fully specified in
 **Step 1: Build the sidecar**
 
 ```bash
-cd openclaw-clawmate/sidecar && npm install && npm run build
+cd openclaw-mate/sidecar && npm install && npm run build
 ```
 
 Expected: `sidecar/dist/index.js` created, no TypeScript errors.
@@ -58,7 +58,7 @@ git commit -m "chore: add compiled sidecar dist"
 ## Task 2: Create `sidecar.rs` — SidecarManager
 
 **Files:**
-- Create: `openclaw-clawmate/src-tauri/src/sidecar.rs`
+- Create: `openclaw-mate/src-tauri/src/sidecar.rs`
 
 The manager spawns the Node.js process, writes JSON lines to stdin, reads JSON lines from stdout, and matches responses to callers using a `task_id → oneshot::Sender` map.
 
@@ -99,7 +99,7 @@ mod tests {
 **Step 2: Run to confirm it fails**
 
 ```bash
-cd openclaw-clawmate/src-tauri && cargo test sidecar
+cd openclaw-mate/src-tauri && cargo test sidecar
 ```
 
 Expected: compile error — `SidecarManager` not defined.
@@ -234,7 +234,7 @@ impl SidecarManager {
 **Step 4: Run the tests**
 
 ```bash
-cd openclaw-clawmate/src-tauri && cargo test sidecar -- --nocapture
+cd openclaw-mate/src-tauri && cargo test sidecar -- --nocapture
 ```
 
 Expected: both tests pass. If `system.ts` stub returns `success`, `test_execute_system_run` will pass.
@@ -251,7 +251,7 @@ git commit -m "feat: add SidecarManager for stdin/stdout IPC with Node sidecar"
 ## Task 3: Register SidecarManager in `main.rs`
 
 **Files:**
-- Modify: `openclaw-clawmate/src-tauri/src/main.rs`
+- Modify: `openclaw-mate/src-tauri/src/main.rs`
 
 Spawn the sidecar at startup and store it as Tauri managed state so `ws_client.rs` can access it.
 
@@ -303,13 +303,13 @@ Add `use std::sync::Arc;` at the top of `main.rs` if not already present.
 **Step 3: Build to confirm compiles**
 
 ```bash
-cd openclaw-clawmate && npm run build
+cd openclaw-mate && npm run build
 ```
 
 Expected: no errors. (Tauri full build not required here, just TS + check.)
 
 ```bash
-cd openclaw-clawmate/src-tauri && cargo check
+cd openclaw-mate/src-tauri && cargo check
 ```
 
 Expected: no errors.
@@ -326,7 +326,7 @@ git commit -m "feat: spawn SidecarManager on app startup, manage in Tauri state"
 ## Task 4: Route `browser.*` and `vision.*` to sidecar in `ws_client.rs`
 
 **Files:**
-- Modify: `openclaw-clawmate/src-tauri/src/ws_client.rs`
+- Modify: `openclaw-mate/src-tauri/src/ws_client.rs`
 
 **Step 1: Update `execute_command` signature to accept AppHandle**
 
@@ -473,7 +473,7 @@ async fn execute_command(app: &tauri::AppHandle, command: &str, args: &serde_jso
 **Step 3: Check compiles**
 
 ```bash
-cd openclaw-clawmate/src-tauri && cargo check
+cd openclaw-mate/src-tauri && cargo check
 ```
 
 Expected: no errors.
@@ -490,7 +490,7 @@ git commit -m "feat: route browser.* and vision.* commands to sidecar IPC"
 ## Task 5: Implement `browser.ts` with Playwright
 
 **Files:**
-- Modify: `openclaw-clawmate/sidecar/src/modules/browser.ts`
+- Modify: `openclaw-mate/sidecar/src/modules/browser.ts`
 
 Supported commands (via `payload.command`):
 - `browser.navigate` — open URL, return `{ title, url }`
@@ -500,7 +500,7 @@ Supported commands (via `payload.command`):
 
 **Step 1: Write failing tests**
 
-Create `openclaw-clawmate/sidecar/src/modules/browser.test.ts`:
+Create `openclaw-mate/sidecar/src/modules/browser.test.ts`:
 
 ```typescript
 import { executeBrowser } from './browser'
@@ -545,7 +545,7 @@ describe('browser module', () => {
 **Step 2: Run to confirm fails**
 
 ```bash
-cd openclaw-clawmate/sidecar && npx jest browser.test.ts
+cd openclaw-mate/sidecar && npx jest browser.test.ts
 ```
 
 Expected: FAIL — `executeBrowser` returns null result, `title` assertion fails.
@@ -630,7 +630,7 @@ export async function executeBrowser(task: SidecarTask): Promise<SidecarResult> 
 **Step 4: Run tests**
 
 ```bash
-cd openclaw-clawmate/sidecar && npx jest browser.test.ts --testTimeout=30000
+cd openclaw-mate/sidecar && npx jest browser.test.ts --testTimeout=30000
 ```
 
 Expected: all pass. If Playwright browsers not installed:
@@ -644,7 +644,7 @@ Then re-run.
 **Step 5: Rebuild sidecar**
 
 ```bash
-cd openclaw-clawmate/sidecar && npm run build
+cd openclaw-mate/sidecar && npm run build
 ```
 
 **Step 6: Commit**
@@ -659,7 +659,7 @@ git commit -m "feat: implement browser module with Playwright (navigate, screens
 ## Task 6: Implement `vision.ts` — screenshot
 
 **Files:**
-- Modify: `openclaw-clawmate/sidecar/src/modules/vision.ts`
+- Modify: `openclaw-mate/sidecar/src/modules/vision.ts`
 
 Supported commands:
 - `vision.screenshot` — full-screen screenshot, returns base64 PNG
@@ -668,7 +668,7 @@ Reuses Playwright (same browser instance via shared getBrowser import) rather th
 
 **Step 1: Write failing test**
 
-Create `openclaw-clawmate/sidecar/src/modules/vision.test.ts`:
+Create `openclaw-mate/sidecar/src/modules/vision.test.ts`:
 
 ```typescript
 import { executeVision } from './vision'
@@ -699,7 +699,7 @@ describe('vision module', () => {
 **Step 2: Run to confirm fails**
 
 ```bash
-cd openclaw-clawmate/sidecar && npx jest vision.test.ts
+cd openclaw-mate/sidecar && npx jest vision.test.ts
 ```
 
 Expected: FAIL.
@@ -739,7 +739,7 @@ export async function executeVision(task: SidecarTask): Promise<SidecarResult> {
 **Step 4: Run tests**
 
 ```bash
-cd openclaw-clawmate/sidecar && npx jest vision.test.ts
+cd openclaw-mate/sidecar && npx jest vision.test.ts
 ```
 
 Expected: passes.
@@ -747,7 +747,7 @@ Expected: passes.
 **Step 5: Rebuild and commit**
 
 ```bash
-cd openclaw-clawmate/sidecar && npm run build
+cd openclaw-mate/sidecar && npm run build
 git add sidecar/src/modules/vision.ts sidecar/src/modules/vision.test.ts sidecar/dist/
 git commit -m "feat: implement vision module with screenshot capability"
 ```
@@ -757,7 +757,7 @@ git commit -m "feat: implement vision module with screenshot capability"
 ## Task 7: End-to-end Rust integration test
 
 **Files:**
-- Modify: `openclaw-clawmate/src-tauri/src/sidecar.rs` (add test)
+- Modify: `openclaw-mate/src-tauri/src/sidecar.rs` (add test)
 
 **Step 1: Add browser integration test**
 
@@ -788,7 +788,7 @@ async fn test_execute_browser_navigate() {
 **Step 2: Run**
 
 ```bash
-cd openclaw-clawmate/src-tauri && cargo test sidecar -- --nocapture
+cd openclaw-mate/src-tauri && cargo test sidecar -- --nocapture
 ```
 
 Expected: all 3 sidecar tests pass.
@@ -804,7 +804,7 @@ git commit -m "test: add Rust integration test for sidecar browser.navigate"
 
 ## Update README command table
 
-After all tasks pass, update `openclaw-clawmate/README.md` and `README.zh-CN.md`:
+After all tasks pass, update `openclaw-mate/README.md` and `README.zh-CN.md`:
 
 Change:
 ```

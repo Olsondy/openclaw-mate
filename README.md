@@ -1,6 +1,6 @@
 <div align="center">
   <img src="./docs/logo.svg" alt="OpenClaw Logo" width="160"/>
-  <h1>ClawMate (openclaw-clawmate)</h1>
+  <h1>ClawMate (openclaw-mate)</h1>
   <p>Desktop execution node for the multi-tenant self-hosted platform</p>
 
   **English** | [简体中文](./README.zh-CN.md)
@@ -13,7 +13,7 @@
 
 ## Introduction
 
-**openclaw-clawmate** is the **desktop execution node** of the Easy OpenClaw multi-tenant platform, built on Tauri 2 + React 18.
+**openclaw-mate** is the **desktop execution node** of the Easy OpenClaw multi-tenant platform, built on Tauri 2 + React 18.
 
 Each authorized user runs one exec instance locally, responsible for:
 1. Performing License activation against **openclaw-tenant** (HWID binding + retrieving gateway config)
@@ -34,7 +34,7 @@ Server (self-hosted)
                 │ wss:// persistent connection (WebSocket)
                 │
 Client (user's local machine)
-└── openclaw-clawmate (this module) ── desktop app, executes local tasks
+└── openclaw-mate (this module) ── desktop app, executes local tasks
         ↑
         │ ① First activation: POST /api/verify → tenant
         │   Returns gatewayUrl / gatewayToken / licenseId
@@ -137,7 +137,7 @@ Gateway pushes { type: "req", method: "node.invoke",
 ## 📂 Project Structure
 
 ```text
-openclaw-clawmate/
+openclaw-mate/
 ├── src/                 # React frontend (UI / state / pages)
 ├── src-tauri/           # Tauri Rust core layer
 │   └── src/

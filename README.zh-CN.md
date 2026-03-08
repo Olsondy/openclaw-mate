@@ -1,6 +1,6 @@
 <div align="center">
   <img src="./docs/logo.svg" alt="OpenClaw Logo" width="160"/>
-  <h1>ClawMate（openclaw-clawmate）</h1>
+  <h1>ClawMate（openclaw-mate）</h1>
   <p>多租户私有化平台的桌面执行节点</p>
 
   [English](./README.md) | **简体中文**
@@ -13,7 +13,7 @@
 
 ## 简介
 
-**openclaw-clawmate** 是 Easy OpenClaw 多租户平台的**桌面端执行节点**，基于 Tauri 2 + React 18 构建。
+**openclaw-mate** 是 Easy OpenClaw 多租户平台的**桌面端执行节点**，基于 Tauri 2 + React 18 构建。
 
 每个获得授权的用户在本地运行一个 exec 实例，它负责：
 1. 向 **openclaw-tenant** 进行 Token 验证（HWID 绑定）
@@ -34,7 +34,7 @@
                 │ wss:// 长连接（WebSocket）
                 │
 客户端（用户本地）
-└── openclaw-clawmate（本模块）── 桌面应用，执行本地任务
+└── openclaw-mate（本模块）── 桌面应用，执行本地任务
         ↑
         │ ① POST /api/verify → tenant 验证 token + machine_id
         │   返回 { allowed, message }
@@ -137,7 +137,7 @@ Gateway 推送 { type: "req", method: "node.invoke",
 ## 📂 项目结构
 
 ```text
-openclaw-clawmate/
+openclaw-mate/
 ├── src/                 # React 前端源码（UI / 状态管理 / 页面）
 ├── src-tauri/           # Tauri Rust 核心层
 │   └── src/
