@@ -8,6 +8,7 @@ use tokio::sync::Mutex;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 const SIDECAR_TIMEOUT_MS: u64 = 30_000;
+const CHANNEL_AUTH_STATUS_REQUEST_ID: &str = "channel-auth-status-1";
 
 // ─── OpenClaw Gateway 协议结构 ───────────────────────────────────
 
@@ -87,6 +88,11 @@ struct HelloOkAuth {
 #[derive(Debug, Deserialize)]
 struct HelloOkPayload {
     auth: Option<HelloOkAuth>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ChannelAuthStatusPayload {
+    required: bool,
 }
 
 // ─── 前端 emit 的任务结构 ────────────────────────────────────────
@@ -292,12 +298,39 @@ async fn handle_gateway_message(app: &tauri::AppHandle, text: &str) {
                             }
                         }
                     }
+                    // 补状态查询：重连后主动拉取通道授权状态
+                    request_channel_auth_status().await;
                 } else {
                     // 握手失败（可能是 pairing required）
                     let err_msg = msg.error
                         .and_then(|e| e.get("message").and_then(|m| m.as_str().map(|s| s.to_string())))
                         .unwrap_or_else(|| "握手失败".to_string());
                     app.emit("ws:error", err_msg).ok();
+                }
+            } else if msg.id.as_deref() == Some(CHANNEL_AUTH_STATUS_REQUEST_ID) {
+                if msg.ok == Some(true) {
+                    let parsed = msg
+                        .payload
+                        .as_ref()
+                        .and_then(|payload| serde_json::from_value::<ChannelAuthStatusPayload>(payload.clone()).ok());
+                    let required = match parsed {
+                        Some(status) => status.required,
+                        None => {
+                            app.emit("ws:error", "channel.auth.status payload invalid".to_string()).ok();
+                            return;
+                        }
+                    };
+                    let event_name = if required {
+                        "channel.auth.required"
+                    } else {
+                        "channel.auth.resolved"
+                    };
+                    app.emit("ws:gateway_event", serde_json::json!({
+                        "event": event_name,
+                        "payload": serde_json::Value::Null
+                    })).ok();
+                } else {
+                    app.emit("ws:error", "channel.auth.status request failed".to_string()).ok();
                 }
             }
         }
@@ -364,6 +397,19 @@ async fn handle_gateway_message(app: &tauri::AppHandle, text: &str) {
         }
 
         _ => {}
+    }
+}
+
+async fn request_channel_auth_status() {
+    let req = serde_json::json!({
+        "type": "req",
+        "id": CHANNEL_AUTH_STATUS_REQUEST_ID,
+        "method": "channel.auth.status",
+        "params": {}
+    });
+    let mut sink = get_ws_sink().lock().await;
+    if let Some(ref mut w) = *sink {
+        w.send(Message::Text(req.to_string().into())).await.ok();
     }
 }
 
