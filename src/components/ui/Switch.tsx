@@ -15,7 +15,7 @@ export function Switch({ checked, onChange, label, disabled = false }: SwitchPro
         className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${checked ? 'bg-primary' : 'bg-surface-variant'}`}
       >
         <span
-          className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${checked ? 'translate-x-6' : 'translate-x-0'}`}
+          className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface shadow transition-transform duration-200 ${checked ? 'translate-x-6' : 'translate-x-0'}`}
         />
       </div>
       {label && <span className="text-sm text-surface-on">{label}</span>}

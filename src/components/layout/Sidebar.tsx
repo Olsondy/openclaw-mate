@@ -1,96 +1,129 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { Earth, Settings } from 'lucide-react'
+import {
+  Terminal,
+  Settings,
+  PanelLeftClose,
+  PanelLeftOpen,
+  LayoutDashboard,
+  Activity,
+  Cpu,
+  MessageSquare
+} from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
-import { useConnectionStore } from '../../store'
 import { useConfigStore } from '../../store'
-
-import { LayoutDashboard, Activity, PlugZap, LineChart } from 'lucide-react'
-
-const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/activity', icon: Activity, label: 'Activity' },
-  { to: '/capabilities', icon: PlugZap, label: 'Capabilities' },
-  { to: '/analytics', icon: LineChart, label: 'Analytics' },
-]
-
-const statusColors: Record<string, string> = {
-  online: 'bg-green-500',
-  connecting: 'bg-yellow-500',
-  auth_checking: 'bg-yellow-500',
-  authorized: 'bg-yellow-500',
-  error: 'bg-red-500',
-  unauthorized: 'bg-red-500',
-  idle: 'bg-gray-400',
-  paused: 'bg-gray-400',
-}
+import { useT } from '../../i18n'
 
 export function Sidebar() {
-  const { status } = useConnectionStore()
-  const { config } = useConfigStore()
+  const { runtimeConfig } = useConfigStore()
+  const [collapsed, setCollapsed] = useState(false)
+  const t = useT()
+
+  const navItems = [
+    { to: '/', icon: LayoutDashboard, label: t.sidebar.dashboard },
+    { to: '/activity', icon: Activity, label: t.sidebar.activity },
+    { to: '/channel', icon: MessageSquare, label: t.sidebar.channel },
+    { to: '/capabilities', icon: Cpu, label: t.sidebar.capabilities },
+  ]
 
   const openConsole = async () => {
-    if (!config.cloud_console_url) return
-    await invoke('open_cloud_console', { url: config.cloud_console_url })
+    if (!runtimeConfig?.gatewayWebUI) return
+    await invoke('open_cloud_console', { url: runtimeConfig.gatewayWebUI })
   }
 
+  const STROKE_WIDTH = 1.8
+
   return (
-    <aside className="w-64 h-screen bg-transparent flex flex-col flex-shrink-0">
-      {/* Logo */}
-      <div className="p-4 px-6 pt-6">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white text-sm font-bold">OC</div>
-          <div>
-            <div className="text-sm font-semibold text-surface-on">ClawMate</div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={`w-1.5 h-1.5 rounded-full ${statusColors[status] ?? 'bg-gray-400'}`} />
-              <span className="text-xs text-surface-on-variant capitalize">{status.replace('_', ' ')}</span>
-            </div>
-          </div>
-        </div>
+    <aside
+      className={`h-screen flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out ${collapsed ? 'w-[68px]' : 'w-[240px]'
+        }`}
+    >
+      {/* 1. TOP: Control Header */}
+      <div className="h-14 flex items-center px-4 mb-2">
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="p-2 rounded-lg text-surface-on-variant hover:bg-surface-variant/50 hover:text-surface-on transition-colors outline-none"
+          title={collapsed ? t.sidebar.expand : t.sidebar.collapse}
+        >
+          {collapsed ? (
+            <PanelLeftOpen size={20} strokeWidth={STROKE_WIDTH} />
+          ) : (
+            <PanelLeftClose size={20} strokeWidth={STROKE_WIDTH} />
+          )}
+        </button>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-1">
+      {/* 2. MIDDLE: Navigation Items */}
+      <nav className="flex-1 px-3 space-y-1 overflow-y-auto overflow-x-hidden pt-4 custom-scrollbar">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
             end={to === '/'}
+            title={collapsed ? label : undefined}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-2.5 mx-3 rounded-full text-sm font-medium transition-colors duration-150 ${isActive
-                ? 'bg-primary-container text-primary-on-container'
-                : 'text-surface-on-variant hover:bg-surface-variant hover:text-surface-on'
-              }`
+              `group flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${isActive
+                ? 'bg-nav-hover text-surface-on font-medium'
+                : 'text-surface-on-variant hover:bg-nav-hover hover:text-surface-on'
+              } ${collapsed ? 'justify-center' : ''}`
             }
           >
-            <Icon className="w-[18px] h-[18px]" strokeWidth={2.5} />
-            {label}
+            <Icon
+              size={18}
+              strokeWidth={STROKE_WIDTH}
+              className="shrink-0 transition-transform duration-200 group-hover:scale-110"
+            />
+            {!collapsed && (
+              <span className="text-[13px] whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-300">
+                {label}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
 
-      {/* Bottom items */}
+      {/* 3. BOTTOM: System Entries */}
       <div className="p-3 space-y-1">
         <button
           onClick={openConsole}
-          className="w-[calc(100%-1.5rem)] mx-3 flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-medium text-surface-on-variant hover:bg-surface-variant hover:text-surface-on transition-colors"
+          title={collapsed ? t.sidebar.devConsole : undefined}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-surface-on-variant hover:bg-nav-hover hover:text-surface-on transition-all duration-200 group ${collapsed ? 'justify-center' : ''
+            }`}
         >
-          <Earth className="w-[18px] h-[18px]" strokeWidth={2.5} />
-          云端控制台
+          <Terminal
+            size={18}
+            strokeWidth={STROKE_WIDTH}
+            className="shrink-0 group-hover:scale-110 transition-transform duration-200"
+          />
+          {!collapsed && (
+            <span className="text-[13px] whitespace-nowrap animate-in fade-in slide-in-from-left-2 duration-300">
+              {t.sidebar.devConsole}
+            </span>
+          )}
         </button>
+
         <NavLink
           to="/settings"
+          title={collapsed ? t.sidebar.settings : undefined}
           className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-2.5 mx-3 rounded-full text-sm font-medium transition-colors ${isActive
-              ? 'bg-primary-container text-primary-on-container'
-              : 'text-surface-on-variant hover:bg-surface-variant hover:text-surface-on'
-            }`
+            `group flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${isActive
+              ? 'bg-nav-hover text-surface-on font-medium'
+              : 'text-surface-on-variant hover:bg-nav-hover hover:text-surface-on'
+            } ${collapsed ? 'justify-center' : ''}`
           }
         >
-          <Settings className="w-[18px] h-[18px]" strokeWidth={2.5} />
-          Settings
+          <Settings
+            size={18}
+            strokeWidth={STROKE_WIDTH}
+            className="shrink-0 group-hover:rotate-45 transition-transform duration-300"
+          />
+          {!collapsed && (
+            <span className="text-[13px] whitespace-nowrap animate-in fade-in slide-in-from-left-2 duration-300">
+              {t.sidebar.settings}
+            </span>
+          )}
         </NavLink>
       </div>
-    </aside>
+    </aside >
   )
 }

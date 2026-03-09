@@ -2,36 +2,41 @@ import type { Config } from 'tailwindcss'
 
 const config: Config = {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         // Material Design 3 / Google Workspace / Anthropic 色彩 Token
         primary: {
-          DEFAULT: '#0B57D0',
-          container: '#D3E3FD',
-          on: '#FFFFFF',
-          'on-container': '#041E49',
+          DEFAULT: 'var(--color-primary, #0B57D0)',
+          container: 'var(--color-primary-container, #D3E3FD)',
+          on: 'var(--color-primary-on, #FFFFFF)',
+          'on-container': 'var(--color-primary-on-container, #041E49)',
         },
         secondary: {
-          DEFAULT: '#5E5E5E',
-          container: '#E3E3E3',
-          on: '#FFFFFF',
-          'on-container': '#1F1F1F',
+          DEFAULT: 'var(--color-secondary, #5E5E5E)',
+          container: 'var(--color-secondary-container, #E3E3E3)',
+          on: 'var(--color-secondary-on, #FFFFFF)',
+          'on-container': 'var(--color-secondary-on-container, #1F1F1F)',
         },
         surface: {
-          DEFAULT: '#FFFFFF',
-          variant: '#F0F4F9',
-          on: '#1F1F1F',
-          'on-variant': '#444746',
+          DEFAULT: 'var(--color-surface, #FFFFFF)',
+          variant: 'var(--color-surface-variant, #F0F4F9)',
+          on: 'var(--color-surface-on, #1F1F1F)',
+          'on-variant': 'var(--color-surface-on-variant, #444746)',
         },
         error: {
-          DEFAULT: '#B3261E',
-          container: '#F9DEDC',
-          on: '#FFFFFF',
-          'on-container': '#410E0B',
+          DEFAULT: 'var(--color-error, #B3261E)',
+          container: 'var(--color-error-container, #F9DEDC)',
+          on: 'var(--color-error-on, #FFFFFF)',
+          'on-container': 'var(--color-error-on-container, #410E0B)',
         },
-        outline: '#DADCE0',
-        background: '#F8F9FA',
+        outline: 'var(--color-outline, #DADCE0)',
+        background: 'var(--color-background, #F8F9FA)',
+        'nav-hover': 'var(--color-nav-hover, #E8ECF0)',
+        'card-bg': 'var(--color-card-bg, #FFFFFF)',
+        'card-border': 'var(--color-card-border, rgba(0,0,0,0.08))',
+        'btn-border': 'var(--color-btn-border, rgba(0,0,0,0.14))',
       },
       borderRadius: {
         'md': '8px',
