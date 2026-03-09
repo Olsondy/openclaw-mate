@@ -56,6 +56,8 @@ export const en: Dict = {
     statusIdle: 'Idle',
     statusPaused: 'Paused',
     tasks: 'tasks',
+    nodeActive: 'Active',
+    nodeIdle: 'Idle',
   },
 
   // Activity
@@ -134,5 +136,11 @@ export const en: Dict = {
     themeLight: 'Light',
     themeDark: 'Dark',
     themeSystem: 'System',
+    localOpenClaw: 'Local OpenClaw',
+    licenseKeyLabel: 'License Key',
+    agentId: 'Agent ID',
+    approvalBrowser: 'Browser Automation',
+    approvalSystem: 'System Operations',
+    approvalVision: 'Vision / OCR',
   },
 }

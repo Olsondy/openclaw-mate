@@ -50,6 +50,8 @@ export type Dict = {
     statusIdle: string
     statusPaused: string
     tasks: string
+    nodeActive: string
+    nodeIdle: string
   }
   activity: {
     all: string
@@ -118,6 +120,12 @@ export type Dict = {
     themeLight: string
     themeDark: string
     themeSystem: string
+    localOpenClaw: string
+    licenseKeyLabel: string
+    agentId: string
+    approvalBrowser: string
+    approvalSystem: string
+    approvalVision: string
   }
 }
 
@@ -177,6 +185,8 @@ export const zh: Dict = {
     statusIdle: '空闲',
     statusPaused: '已暂停',
     tasks: '任务',
+    nodeActive: '运行中',
+    nodeIdle: '空闲',
   },
 
   // Activity
@@ -255,5 +265,11 @@ export const zh: Dict = {
     themeLight: '浅色',
     themeDark: '深色',
     themeSystem: '跟随系统',
+    localOpenClaw: '本地 OpenClaw',
+    licenseKeyLabel: 'License Key',
+    agentId: 'Agent ID',
+    approvalBrowser: '浏览器自动化',
+    approvalSystem: '系统操作',
+    approvalVision: '视觉/OCR',
   },
 }
