@@ -18,8 +18,12 @@
         "minWidth": 800,
         "minHeight": 600,
         "decorations": true,
-        "transparent": false,
-        "resizable": true
+        "transparent": true,
+        "resizable": true,
+        "windowEffects": {
+          "effects": ["mica"],
+          "state": "followsWindowActiveState"
+        }
       }
     ],
     "security": {
