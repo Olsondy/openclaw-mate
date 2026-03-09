@@ -2,34 +2,36 @@ import { TopBar } from '../components/layout/TopBar'
 import { Card, Switch } from '../components/ui'
 import { useConfigStore } from '../store'
 import { Globe, Monitor, Eye } from 'lucide-react'
-
-const modules = [
-  {
-    key: 'browser' as const,
-    icon: Globe,
-    title: '浏览器自动化',
-    description: '使用 Playwright 控制 Chrome/Firefox 执行网页操作、表单填写、数据抓取',
-  },
-  {
-    key: 'system' as const,
-    icon: Monitor,
-    title: '系统操作',
-    description: '文件管理、进程控制、执行系统命令。注意：此模块风险较高，建议设置审批规则',
-  },
-  {
-    key: 'vision' as const,
-    icon: Eye,
-    title: '视觉/OCR',
-    description: '屏幕截图、OCR 文字识别、图像分析能力',
-  },
-]
+import { useT } from '../i18n'
 
 export function CapabilitiesPage() {
   const { capabilities, toggleCapability } = useConfigStore()
+  const t = useT()
+
+  const modules = [
+    {
+      key: 'browser' as const,
+      icon: Globe,
+      title: t.capabilities.browser,
+      description: t.capabilities.browserDesc,
+    },
+    {
+      key: 'system' as const,
+      icon: Monitor,
+      title: t.capabilities.system,
+      description: t.capabilities.systemDesc,
+    },
+    {
+      key: 'vision' as const,
+      icon: Eye,
+      title: t.capabilities.vision,
+      description: t.capabilities.visionDesc,
+    },
+  ]
 
   return (
     <>
-      <TopBar title="Capabilities" subtitle="Enable or disable execution modules" />
+      <TopBar title={t.sidebar.capabilities} subtitle={t.topbar.capabilitiesSub} />
       <div className="flex-1 overflow-auto p-6 space-y-3 max-w-2xl">
         {modules.map(({ key, icon: Icon, title, description }) => (
           <Card key={key}>
