@@ -1,32 +1,32 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { zh } from './zh'
-import { en } from './en'
-import type { Dict } from './zh'
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { en } from "./en";
+import type { Dict } from "./zh";
+import { zh } from "./zh";
 
-export type Locale = 'zh' | 'en'
-export type Theme = 'light' | 'dark' | 'system'
+export type Locale = "zh" | "en";
+export type Theme = "light" | "dark" | "system";
 
-const dictionaries: Record<Locale, Dict> = { zh, en }
+const dictionaries: Record<Locale, Dict> = { zh, en };
 
 interface I18nState {
-  locale: Locale
-  theme: Theme
-  setLocale: (locale: Locale) => void
-  setTheme: (theme: Theme) => void
+	locale: Locale;
+	theme: Theme;
+	setLocale: (locale: Locale) => void;
+	setTheme: (theme: Theme) => void;
 }
 
 export const useI18nStore = create<I18nState>()(
-  persist(
-    (set) => ({
-      locale: 'zh',
-      theme: 'system',
-      setLocale: (locale) => set({ locale }),
-      setTheme: (theme) => set({ theme }),
-    }),
-    { name: 'easy-openclaw-i18n' }
-  )
-)
+	persist(
+		(set) => ({
+			locale: "zh",
+			theme: "system",
+			setLocale: (locale) => set({ locale }),
+			setTheme: (theme) => set({ theme }),
+		}),
+		{ name: "easy-openclaw-i18n" },
+	),
+);
 
 /**
  * useT — 返回当前语言字典，使用方式：
@@ -34,6 +34,6 @@ export const useI18nStore = create<I18nState>()(
  *   t.sidebar.dashboard  // '控制面板' or 'Dashboard'
  */
 export function useT(): Dict {
-  const locale = useI18nStore((s) => s.locale)
-  return dictionaries[locale]
+	const locale = useI18nStore((s) => s.locale);
+	return dictionaries[locale];
 }

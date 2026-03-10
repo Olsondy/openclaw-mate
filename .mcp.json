@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": ["-y", "@smithery/cli@latest", "run", "@heiligbasil/mcp-shadcn", "--", "--components-json-path", "./components.json"],
+      "description": "shadcn/ui 组件注册表 MCP —— 搜索、添加、预览 shadcn 组件"
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./src"],
+      "description": "本地文件系统 MCP —— 读写 src/ 目录（Tauri 开发调试用）"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"],
+      "description": "Playwright 浏览器自动化 MCP —— UI 测试与截图"
+    }
+  }
+}
+

@@ -1,12 +1,12 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
-  "files": {
-    "includes": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
-  },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": false
-    }
-  }
+	"$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
+	"files": {
+		"includes": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": false
+		}
+	}
 }

@@ -1,121 +1,128 @@
-import { useCallback, useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { getCurrentWindow } from '@tauri-apps/api/window'
-import { invoke } from '@tauri-apps/api/core'
-import { AppLayout } from './components/layout/AppLayout'
-import { DashboardPage } from './pages/DashboardPage'
-import { ActivityPage } from './pages/ActivityPage'
-import { CapabilitiesPage } from './pages/CapabilitiesPage'
-import { SettingsPage } from './pages/SettingsPage'
-import { ChannelPage } from './pages/ChannelPage'
-import { useBootstrapStore, useConfigStore } from './store'
-import { FeishuWizard } from './components/features/wizard/FeishuWizard'
-import { ApiWizard } from './components/features/wizard/ApiWizard'
-import { ChannelAuthDialog } from './components/features/channel-auth/ChannelAuthDialog'
-import { WelcomeModal } from './components/features/welcome/WelcomeModal'
-import { useNodeConnection } from './hooks/useNodeConnection'
-import { useTauriEvent } from './hooks/useTauri'
-import { useI18nStore } from './i18n'
-import type { ConnectionMode } from './store/config.store'
-
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useCallback, useEffect, useState } from "react";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { ChannelAuthDialog } from "./components/features/channel-auth/ChannelAuthDialog";
+import { WelcomeModal } from "./components/features/welcome/WelcomeModal";
+import { ApiWizard } from "./components/features/wizard/ApiWizard";
+import { FeishuWizard } from "./components/features/wizard/FeishuWizard";
+import { AppLayout } from "./components/layout/AppLayout";
+import { Toaster } from "./components/ui/sonner";
+import { useNodeConnection } from "./hooks/useNodeConnection";
+import { useTauriEvent } from "./hooks/useTauri";
+import { useI18nStore } from "./i18n";
+import { ActivityPage } from "./pages/ActivityPage";
+import { CapabilitiesPage } from "./pages/CapabilitiesPage";
+import { ChannelPage } from "./pages/ChannelPage";
+import { DashboardPage } from "./pages/DashboardPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { useBootstrapStore, useConfigStore } from "./store";
+import type { ConnectionMode } from "./store/config.store";
 
 type GatewayEventEnvelope = {
-  event: string
-  payload: unknown
-}
+	event: string;
+	payload: unknown;
+};
 
 function AppInner() {
-  const { wizardOpen, needs, closeWizard } = useBootstrapStore()
-  const { licenseId, connectionMode, setConnectionMode } = useConfigStore()
-  const { verifyAndConnect } = useNodeConnection()
-  const [showChannelAuthDialog, setShowChannelAuthDialog] = useState(false)
-  const [showWelcome, setShowWelcome] = useState(false)
-  const theme = useI18nStore((s) => s.theme)
+	const { wizardOpen, needs, closeWizard } = useBootstrapStore();
+	const { licenseId, setConnectionMode } = useConfigStore();
+	const { verifyAndConnect } = useNodeConnection();
+	const [showChannelAuthDialog, setShowChannelAuthDialog] = useState(false);
+	const [showWelcome, setShowWelcome] = useState(false);
+	const theme = useI18nStore((s) => s.theme);
 
-  // 启动时从文件加载 connectionMode
-  useEffect(() => {
-    invoke<{ connectionMode: ConnectionMode | null }>('get_app_config')
-      .then(({ connectionMode: mode }) => {
-        setConnectionMode(mode ?? null)
-        if (!mode) setShowWelcome(true)
-      })
-      .catch(() => setShowWelcome(true))
-  }, [])
+	// 启动时从文件加载 connectionMode
+	useEffect(() => {
+		invoke<{ connectionMode: ConnectionMode | null }>("get_app_config")
+			.then(({ connectionMode: mode }) => {
+				setConnectionMode(mode ?? null);
+				if (!mode) setShowWelcome(true);
+			})
+			.catch(() => setShowWelcome(true));
+	}, []);
 
-  // 将主题色同步到 html 元素
-  useEffect(() => {
-    const root = window.document.documentElement
+	// 将主题色同步到 html 元素
+	useEffect(() => {
+		const root = window.document.documentElement;
 
-    const setHtmlClass = (isDark: boolean) => {
-      root.classList.add(isDark ? 'dark' : 'light');
-      root.classList.remove(isDark ? 'light' : 'dark');
-      root.style.colorScheme = isDark ? 'dark' : 'light';
-      // 同步 Tauri 原生窗口主题（影响 Mica 材质明暗）
-      getCurrentWindow().setTheme(isDark ? 'dark' : 'light').catch((e) => console.warn('[theme] setTheme failed:', e))
-    };
+		const setHtmlClass = (isDark: boolean) => {
+			root.classList.add(isDark ? "dark" : "light");
+			root.classList.remove(isDark ? "light" : "dark");
+			root.style.colorScheme = isDark ? "dark" : "light";
+			// 同步 Tauri 原生窗口主题（影响 Mica 材质明暗）
+			getCurrentWindow()
+				.setTheme(isDark ? "dark" : "light")
+				.catch((e) => console.warn("[theme] setTheme failed:", e));
+		};
 
-    if (theme === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-      setHtmlClass(mediaQuery.matches)
+		if (theme === "system") {
+			const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+			setHtmlClass(mediaQuery.matches);
 
-      const handler = (e: MediaQueryListEvent) => setHtmlClass(e.matches)
-      mediaQuery.addEventListener('change', handler)
-      return () => mediaQuery.removeEventListener('change', handler)
-    } else {
-      setHtmlClass(theme === 'dark')
-    }
-  }, [theme])
+			const handler = (e: MediaQueryListEvent) => setHtmlClass(e.matches);
+			mediaQuery.addEventListener("change", handler);
+			return () => mediaQuery.removeEventListener("change", handler);
+		} else {
+			setHtmlClass(theme === "dark");
+		}
+	}, [theme]);
 
-  useTauriEvent<GatewayEventEnvelope>(
-    'ws:gateway_event',
-    useCallback((envelope) => {
-      if (envelope.event === 'channel.auth.required') {
-        setShowChannelAuthDialog(true)
-      } else if (envelope.event === 'channel.auth.resolved') {
-        setShowChannelAuthDialog(false)
-      }
-    }, []),
-  )
+	useTauriEvent<GatewayEventEnvelope>(
+		"ws:gateway_event",
+		useCallback((envelope) => {
+			if (envelope.event === "channel.auth.required") {
+				setShowChannelAuthDialog(true);
+			} else if (envelope.event === "channel.auth.resolved") {
+				setShowChannelAuthDialog(false);
+			}
+		}, []),
+	);
 
-  return (
-    <>
-      {showWelcome && <WelcomeModal onDone={() => setShowWelcome(false)} />}
-      <Routes>
-        <Route path="/" element={<AppLayout />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="activity" element={<ActivityPage />} />
-          <Route path="capabilities" element={<CapabilitiesPage />} />
-          <Route path="channel" element={<ChannelPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-        </Route>
-      </Routes>
-      {wizardOpen && needs.feishu && licenseId && (
-        <FeishuWizard
-          licenseId={licenseId}
-          onSuccess={() => { closeWizard(); verifyAndConnect() }}
-          onClose={closeWizard}
-        />
-      )}
-      {wizardOpen && needs.modelAuth && licenseId && (
-        <ApiWizard
-          licenseId={licenseId}
-          onSuccess={() => { closeWizard(); verifyAndConnect() }}
-          onClose={closeWizard}
-        />
-      )}
-      {showChannelAuthDialog && (
-        <ChannelAuthDialog
-          onClose={() => setShowChannelAuthDialog(false)}
-        />
-      )}
-    </>
-  )
+	return (
+		<>
+			{showWelcome && <WelcomeModal onDone={() => setShowWelcome(false)} />}
+			<Routes>
+				<Route path="/" element={<AppLayout />}>
+					<Route index element={<DashboardPage />} />
+					<Route path="activity" element={<ActivityPage />} />
+					<Route path="capabilities" element={<CapabilitiesPage />} />
+					<Route path="channel" element={<ChannelPage />} />
+					<Route path="settings" element={<SettingsPage />} />
+				</Route>
+			</Routes>
+			{wizardOpen && needs.feishu && licenseId && (
+				<FeishuWizard
+					licenseId={licenseId}
+					onSuccess={() => {
+						closeWizard();
+						verifyAndConnect();
+					}}
+					onClose={closeWizard}
+				/>
+			)}
+			{wizardOpen && needs.modelAuth && licenseId && (
+				<ApiWizard
+					licenseId={licenseId}
+					onSuccess={() => {
+						closeWizard();
+						verifyAndConnect();
+					}}
+					onClose={closeWizard}
+				/>
+			)}
+			{showChannelAuthDialog && (
+				<ChannelAuthDialog onClose={() => setShowChannelAuthDialog(false)} />
+			)}
+		</>
+	);
 }
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <AppInner />
-    </BrowserRouter>
-  )
+	return (
+		<BrowserRouter>
+			<AppInner />
+			<Toaster position="top-center" richColors />
+		</BrowserRouter>
+	);
 }
