@@ -88,11 +88,11 @@ export function ApiWizard({ licenseId, onSuccess, onClose }: Props) {
   }
 
   const inputClass =
-    'w-full px-3 py-2 text-sm rounded-lg border border-outline bg-surface text-surface-on focus:outline-none focus:ring-2 focus:ring-primary/50'
+    'w-full px-3 py-2 text-sm rounded-lg border border-white/15 bg-surface-variant text-surface-on placeholder:text-surface-on-variant/60 focus:outline-none focus:ring-1 focus:ring-white/20'
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-md shadow-2xl ring-1 ring-white/10">
         <div className="flex items-center gap-2 mb-4">
           <Cpu size={16} className="text-primary" />
           <h2 className="text-sm font-semibold text-surface-on">模型 API 配置向导</h2>

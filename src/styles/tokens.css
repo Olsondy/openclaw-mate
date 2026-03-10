@@ -63,21 +63,21 @@
 
   /* ── Dark Theme ── */
   .dark {
-    --color-primary: #A8B4FF;
-    --color-primary-container: #1F2340;
-    --color-primary-on: #0A0A14;
-    --color-primary-on-container: #BDC8FF;
+    --color-primary: #C8C8C8;
+    --color-primary-container: #2A2A2A;
+    --color-primary-on: #111111;
+    --color-primary-on-container: #E0E0E0;
 
-    --color-secondary: #8A8AA8;
-    --color-secondary-container: #1A1A28;
-    --color-secondary-on: #E0E0F0;
-    --color-secondary-on-container: #B0B0CC;
+    --color-secondary: #909090;
+    --color-secondary-container: #222222;
+    --color-secondary-on: #E0E0E0;
+    --color-secondary-on-container: #CCCCCC;
 
     /* surface 统一为纯深灰，与截图参考风格一致 */
     --color-surface: #1A1A1A;
     --color-surface-variant: #2E2E2E;
-    --color-surface-on: #E4E4F0;
-    --color-surface-on-variant: #7878A0;
+    --color-surface-on: #E8E8E8;
+    --color-surface-on-variant: #909090;
 
     --color-error: #F87171;
     --color-error-container: #7F1D1D;
@@ -89,7 +89,7 @@
     --color-nav-hover: rgba(255, 255, 255, 0.12);
     --color-card-bg: #252525;
     --color-card-border: rgba(255, 255, 255, 0.06);
-    --color-btn-border: rgba(255, 255, 255, 0.12);
+    --color-btn-border: rgba(255, 255, 255, 0.04);
   }
 
   body {
