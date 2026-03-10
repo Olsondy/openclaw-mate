@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import {
-  KeyRound, AlertCircle, Loader2,
+  KeyRound, AlertCircle, Loader2, X,
   Shield, MessageSquare, TriangleAlert, Palette, Languages,
-  Sun, Moon, Monitor, ArrowLeftRight, Cpu,
+  Sun, Moon, Monitor, Cpu,
 } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { TopBar } from '../components/layout/TopBar'
@@ -53,9 +53,10 @@ export function SettingsPage() {
   const t = useT()
   const { locale, theme, setLocale, setTheme } = useI18nStore()
 
-  const [isChangingKey, setIsChangingKey] = useState(!licenseKey)
   const [newKey, setNewKey] = useState('')
   const [showConfirmKey, setShowConfirmKey] = useState(false)
+  const [licenseModalOpen, setLicenseModalOpen] = useState(false)
+  const [localModalOpen, setLocalModalOpen] = useState(false)
   const [apiWizardOpen, setApiWizardOpen] = useState(false)
   const [switchTarget, setSwitchTarget] = useState<ConnectionMode | null>(null)
 
@@ -66,13 +67,36 @@ export function SettingsPage() {
   const doActivate = async () => {
     setShowConfirmKey(false)
     setLicenseKey(newKey.trim())
-    setIsChangingKey(false)
     await verifyAndConnect()
   }
 
   const handleSwitchConfirm = (toMode: ConnectionMode) => {
     setConnectionMode(toMode)
     setSwitchTarget(null)
+  }
+
+  const handleLicenseCardClick = async () => {
+    if (connectionMode === 'local') {
+      setSwitchTarget('license')
+    } else {
+      if (!connectionMode) {
+        await invoke('save_app_config', { config: { connectionMode: 'license' } })
+        setConnectionMode('license')
+      }
+      setLicenseModalOpen(true)
+    }
+  }
+
+  const handleLocalCardClick = async () => {
+    if (connectionMode === 'license') {
+      setSwitchTarget('local')
+    } else {
+      if (!connectionMode) {
+        await invoke('save_app_config', { config: { connectionMode: 'local' } })
+        setConnectionMode('local')
+      }
+      setLocalModalOpen(true)
+    }
   }
 
   const inputClass =
@@ -90,157 +114,75 @@ export function SettingsPage() {
         <section>
           <SectionHeader title="连接方式" />
 
-          {/* License 激活 */}
-          <Card className="mb-3">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <KeyRound size={15} className="text-primary" />
-                <span className="text-sm font-medium text-surface-on">License 激活</span>
-              </div>
-              {connectionMode === 'license' ? (
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">当前</span>
-              ) : (
-                <Button
-                  variant="outlined"
-                  size="sm"
-                  onClick={async () => {
-                    if (connectionMode) {
-                      setSwitchTarget('license')
-                    } else {
-                      await invoke('save_app_config', { config: { connectionMode: 'license' } })
-                      setConnectionMode('license')
-                    }
-                  }}
-                >
-                  <ArrowLeftRight size={13} className="mr-1.5" />
-                  切换到此模式
-                </Button>
-              )}
+          {/* 大卡片容器 */}
+          <Card>
+            {/* 网关状态 呼吸灯 */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className="relative flex h-2 w-2">
+                {isOnline && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-60" />
+                )}
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${isOnline ? 'bg-green-500' : 'bg-surface-on-variant/30'}`} />
+              </span>
+              <span className="text-xs text-surface-on-variant">
+                {isLoading ? '连接中...' : isOnline ? '网关已连接' : '网关未连接'}
+              </span>
             </div>
 
-            {connectionMode === 'license' && (
-              <>
-                {/* 连接状态 + license 信息 */}
-                <div className="rounded-lg border border-white/8 bg-surface px-3 py-2.5 space-y-1.5 mb-3">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-surface-on-variant">网关状态</span>
-                    <span className={`flex items-center gap-1.5 font-medium ${isOnline ? 'text-green-500' : 'text-surface-on-variant'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-surface-on-variant'}`} />
-                      {isLoading ? '连接中...' : isOnline ? '已连接' : '未连接'}
-                    </span>
+            {/* 两个小卡片 */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* License 小卡片 */}
+              <button
+                type="button"
+                onClick={handleLicenseCardClick}
+                className="relative text-left rounded-lg border border-card-border bg-surface p-3 hover:border-white/20 transition-all min-h-[80px]"
+              >
+                {connectionMode === 'license' && (
+                  <span className="absolute top-2.5 left-2.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium leading-none">
+                    当前
+                  </span>
+                )}
+                <div className={connectionMode === 'license' ? 'mt-5' : ''}>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <KeyRound size={13} className={connectionMode === 'license' ? 'text-primary' : 'text-surface-on-variant'} />
+                    <span className="text-xs font-medium text-surface-on">License 激活</span>
                   </div>
-                  {hasKey && (
-                    <>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-surface-on-variant">License Key</span>
+                  {connectionMode === 'license' && hasKey && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-surface-on-variant">Key</span>
                         <span className="font-mono text-surface-on">{maskLicenseKey(licenseKey)}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-surface-on-variant">到期时间</span>
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-surface-on-variant">到期</span>
                         <span className="text-surface-on">
                           {expiryDate === 'Permanent' || !expiryDate ? '永久' : expiryDate}
                         </span>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
+              </button>
 
-                {isChangingKey ? (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs text-surface-on-variant mb-1 block">
-                        {hasKey ? '新 License Key' : 'License Key'}
-                      </label>
-                      <input
-                        type="text"
-                        value={newKey}
-                        onChange={(e) => setNewKey(e.target.value)}
-                        placeholder="XXXX-XXXX-XXXX-XXXX"
-                        className={inputClass}
-                        autoComplete="off"
-                        spellCheck={false}
-                      />
-                    </div>
-
-                    {errorMessage && (
-                      <div className="flex items-start gap-2 p-3 rounded-lg bg-error-container text-error-on-container text-sm">
-                        <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                        <span>{errorMessage}</span>
-                      </div>
-                    )}
-
-                    <div className="flex gap-2">
-                      {hasKey && (
-                        <Button variant="outlined" onClick={() => { setNewKey(''); setIsChangingKey(false) }} disabled={isLoading}>
-                          取消
-                        </Button>
-                      )}
-                      <Button
-                        onClick={() => hasKey ? setShowConfirmKey(true) : doActivate()}
-                        disabled={isLoading || !newKey.trim()}
-                        className="flex-1"
-                      >
-                        {isLoading ? (
-                          <span className="flex items-center gap-2">
-                            <Loader2 size={14} className="animate-spin" />
-                            {status === 'auth_checking' ? '验证中...' : '连接中...'}
-                          </span>
-                        ) : '验证并激活'}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Button variant="outlined" onClick={() => setIsChangingKey(true)} className="w-full">
-                    更换 Key
-                  </Button>
+              {/* 本地 小卡片 */}
+              <button
+                type="button"
+                onClick={handleLocalCardClick}
+                className="relative text-left rounded-lg border border-card-border bg-surface p-3 hover:border-white/20 transition-all min-h-[80px]"
+              >
+                {connectionMode === 'local' && (
+                  <span className="absolute top-2.5 left-2.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium leading-none">
+                    当前
+                  </span>
                 )}
-              </>
-            )}
-          </Card>
-
-          {/* 本地 OpenClaw */}
-          <Card>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Monitor size={15} className="text-primary" />
-                <span className="text-sm font-medium text-surface-on">本地 OpenClaw</span>
-              </div>
-              {connectionMode === 'local' ? (
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">当前</span>
-              ) : (
-                <Button
-                  variant="outlined"
-                  size="sm"
-                  onClick={async () => {
-                    if (connectionMode) {
-                      setSwitchTarget('local')
-                    } else {
-                      await invoke('save_app_config', { config: { connectionMode: 'local' } })
-                      setConnectionMode('local')
-                    }
-                  }}
-                >
-                  <ArrowLeftRight size={13} className="mr-1.5" />
-                  切换到此模式
-                </Button>
-              )}
-            </div>
-
-            {connectionMode === 'local' && (
-              <>
-                {/* 连接状态 */}
-                <div className="rounded-lg border border-white/8 bg-surface px-3 py-2.5 mb-3">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-surface-on-variant">网关状态</span>
-                    <span className={`flex items-center gap-1.5 font-medium ${isOnline ? 'text-green-500' : 'text-surface-on-variant'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-surface-on-variant'}`} />
-                      {isLoading ? '连接中...' : isOnline ? '已连接' : '未连接'}
-                    </span>
+                <div className={connectionMode === 'local' ? 'mt-5' : ''}>
+                  <div className="flex items-center gap-1.5">
+                    <Monitor size={13} className={connectionMode === 'local' ? 'text-primary' : 'text-surface-on-variant'} />
+                    <span className="text-xs font-medium text-surface-on">本地 OpenClaw</span>
                   </div>
                 </div>
-                <LocalConnectPanel />
-              </>
-            )}
+              </button>
+            </div>
           </Card>
         </section>
 
@@ -367,6 +309,99 @@ export function SettingsPage() {
         </section>
 
       </div>
+
+      {/* ── License 操作弹窗 ── */}
+      {licenseModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-80 bg-card-bg border border-card-border rounded-xl p-5 shadow-2xl ring-1 ring-white/10 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <KeyRound size={15} className="text-primary" />
+                <h3 className="text-sm font-semibold text-surface-on">License 激活</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setLicenseModalOpen(false); setNewKey('') }}
+                className="text-surface-on-variant hover:text-surface-on transition-colors"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {hasKey && (
+              <div className="rounded-lg border border-white/8 bg-surface px-3 py-2.5 space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-surface-on-variant">当前 Key</span>
+                  <span className="font-mono text-surface-on">{maskLicenseKey(licenseKey)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-surface-on-variant">到期时间</span>
+                  <span className="text-surface-on">
+                    {expiryDate === 'Permanent' || !expiryDate ? '永久' : expiryDate}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="text-xs text-surface-on-variant mb-1.5 block">
+                {hasKey ? '更换 License Key' : 'License Key'}
+              </label>
+              <input
+                type="text"
+                value={newKey}
+                onChange={(e) => setNewKey(e.target.value)}
+                placeholder="XXXX-XXXX-XXXX-XXXX"
+                className={inputClass}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+
+            {errorMessage && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-error-container text-error-on-container text-xs">
+                <AlertCircle size={13} className="mt-0.5 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            <Button
+              onClick={() => hasKey ? setShowConfirmKey(true) : doActivate()}
+              disabled={isLoading || !newKey.trim()}
+              className="w-full"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 size={13} className="animate-spin" />
+                  {status === 'auth_checking' ? '验证中...' : '连接中...'}
+                </span>
+              ) : hasKey ? '更换并激活' : '验证并激活'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── 本地连接弹窗 ── */}
+      {localModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-96 bg-card-bg border border-card-border rounded-xl p-5 shadow-2xl ring-1 ring-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Monitor size={15} className="text-primary" />
+                <h3 className="text-sm font-semibold text-surface-on">本地 OpenClaw</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLocalModalOpen(false)}
+                className="text-surface-on-variant hover:text-surface-on transition-colors"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <LocalConnectPanel />
+          </div>
+        </div>
+      )}
 
       {/* ── 换 Key 确认弹窗 ── */}
       {showConfirmKey && (
