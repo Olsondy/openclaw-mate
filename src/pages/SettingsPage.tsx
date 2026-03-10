@@ -138,51 +138,47 @@ export function SettingsPage() {
               <button
                 type="button"
                 onClick={handleLicenseCardClick}
-                className="relative text-left rounded-lg border border-card-border bg-surface p-3 hover:border-white/20 transition-all min-h-[80px]"
+                className="relative flex flex-col justify-center text-left rounded-lg border border-card-border bg-surface p-3 pt-7 hover:border-white/20 transition-all min-h-[80px]"
               >
                 {connectionMode === 'license' && isOnline && (
                   <span className="absolute top-2.5 left-2.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium leading-none">
                     当前
                   </span>
                 )}
-                <div className={connectionMode === 'license' ? 'mt-5' : ''}>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <KeyRound size={13} className={connectionMode === 'license' ? 'text-primary' : 'text-surface-on-variant'} />
-                    <span className="text-xs font-medium text-surface-on">License 激活</span>
-                  </div>
-                  {connectionMode === 'license' && isOnline && hasKey && (
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-surface-on-variant">Key</span>
-                        <span className="font-mono text-surface-on">{maskLicenseKey(licenseKey)}</span>
-                      </div>
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-surface-on-variant">到期</span>
-                        <span className="text-surface-on">
-                          {expiryDate === 'Permanent' || !expiryDate ? '永久' : expiryDate}
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                <div className="flex items-center gap-1.5 mb-2">
+                  <KeyRound size={13} className={connectionMode === 'license' && isOnline ? 'text-primary' : 'text-surface-on-variant'} />
+                  <span className="text-xs font-medium text-surface-on">License 激活</span>
                 </div>
+                {connectionMode === 'license' && isOnline && hasKey && (
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-surface-on-variant">Key</span>
+                      <span className="font-mono text-surface-on">{maskLicenseKey(licenseKey)}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-surface-on-variant">到期</span>
+                      <span className="text-surface-on">
+                        {expiryDate === 'Permanent' || !expiryDate ? '永久' : expiryDate}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </button>
 
               {/* 本地 小卡片 */}
               <button
                 type="button"
                 onClick={handleLocalCardClick}
-                className="relative text-left rounded-lg border border-card-border bg-surface p-3 hover:border-white/20 transition-all min-h-[80px]"
+                className="relative flex flex-col justify-center text-left rounded-lg border border-card-border bg-surface p-3 pt-7 hover:border-white/20 transition-all min-h-[80px]"
               >
                 {connectionMode === 'local' && isOnline && (
                   <span className="absolute top-2.5 left-2.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium leading-none">
                     当前
                   </span>
                 )}
-                <div className={connectionMode === 'local' ? 'mt-5' : ''}>
-                  <div className="flex items-center gap-1.5">
-                    <Monitor size={13} className={connectionMode === 'local' ? 'text-primary' : 'text-surface-on-variant'} />
-                    <span className="text-xs font-medium text-surface-on">本地 OpenClaw</span>
-                  </div>
+                <div className="flex items-center gap-1.5">
+                  <Monitor size={13} className={connectionMode === 'local' && isOnline ? 'text-primary' : 'text-surface-on-variant'} />
+                  <span className="text-xs font-medium text-surface-on">本地 OpenClaw</span>
                 </div>
               </button>
             </div>
