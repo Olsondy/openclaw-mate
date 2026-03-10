@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   KeyRound, AlertCircle, Loader2, X,
   Shield, MessageSquare, TriangleAlert, Palette, Languages,
-  Sun, Moon, Monitor, Cpu,
+  Sun, Moon, Monitor, Cpu, Cloud
 } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { TopBar } from '../components/layout/TopBar'
@@ -30,16 +30,7 @@ function SectionHeader({ title }: { title: string }) {
   )
 }
 
-const THEMES: { key: Theme; label: string; icon: React.ElementType }[] = [
-  { key: 'light', label: '浅色', icon: Sun },
-  { key: 'dark', label: '深色', icon: Moon },
-  { key: 'system', label: '跟随系统', icon: Monitor },
-]
-
-const MODE_LABEL: Record<ConnectionMode, string> = {
-  license: 'License 云端',
-  local: '本地 OpenClaw',
-}
+/* THEMES & MODE_LABEL moved inside component to access `t` */
 
 export function SettingsPage() {
   const {
@@ -63,6 +54,17 @@ export function SettingsPage() {
   const isLoading = status === 'auth_checking' || status === 'connecting'
   const isOnline = status === 'online'
   const hasKey = Boolean(licenseKey)
+
+  const THEMES: { key: Theme; label: string; icon: React.ElementType }[] = [
+    { key: 'light', label: t.settings.themeLight, icon: Sun },
+    { key: 'dark', label: t.settings.themeDark, icon: Moon },
+    { key: 'system', label: t.settings.themeSystem, icon: Monitor },
+  ]
+
+  const MODE_LABEL: Record<ConnectionMode, string> = {
+    license: t.settings.modeCloud,
+    local: t.settings.modeLocal,
+  }
 
   const doActivate = async () => {
     setShowConfirmKey(false)
@@ -108,86 +110,63 @@ export function SettingsPage() {
 
         {/* ── 连接方式 ── */}
         <section>
-          <SectionHeader title="连接方式" />
+          <SectionHeader title={t.settings.sectionConnection} />
 
-          {/* 大卡片容器 */}
-          <Card>
-            {/* 网关状态 呼吸灯 badge */}
-            <div className="flex items-center gap-2.5 mb-4">
-              <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border ${
-                isOnline
-                  ? 'border-green-500/30 bg-green-500/10 text-green-500'
-                  : 'border-surface-on-variant/20 bg-surface-variant text-surface-on-variant'
-              }`}>
-                <span className="relative flex h-1.5 w-1.5">
-                  {isOnline && (
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-60" />
-                  )}
-                  <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isOnline ? 'bg-green-500' : 'bg-surface-on-variant'}`} />
+          {/* 两个连接卡片 */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* License 卡片 */}
+            <button
+              type="button"
+              onClick={handleLicenseCardClick}
+              className="relative flex flex-col items-center justify-center text-left rounded-xl border border-card-border bg-card-bg p-3 hover:border-white/20 transition-all min-h-[80px]"
+            >
+              {connectionMode === 'license' && isOnline && (
+                <span className="absolute top-2.5 left-2.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium leading-none">
+                  {t.settings.current}
                 </span>
-                {isLoading ? '连接中...' : isOnline ? '网关已连接' : '未连接'}
-              </span>
-              {!connectionMode && !isOnline && (
-                <span className="text-xs text-surface-on-variant/50">请选择连接方式</span>
               )}
-            </div>
-
-            {/* 两个小卡片 */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* License 小卡片 */}
-              <button
-                type="button"
-                onClick={handleLicenseCardClick}
-                className="relative flex flex-col items-start justify-center text-left rounded-lg border border-card-border bg-surface p-3 hover:border-white/20 transition-all min-h-[80px]"
-              >
-                {connectionMode === 'license' && isOnline && (
-                  <span className="absolute top-2.5 left-2.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium leading-none">
-                    当前
-                  </span>
-                )}
-                <div className="flex items-center gap-1.5 mb-2">
-                  <KeyRound size={13} className={connectionMode === 'license' && isOnline ? 'text-primary' : 'text-surface-on-variant'} />
-                  <span className="text-xs font-medium text-surface-on">License 激活</span>
-                </div>
-                {connectionMode === 'license' && isOnline && hasKey && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-surface-on-variant">Key</span>
-                      <span className="font-mono text-surface-on">{maskLicenseKey(licenseKey)}</span>
-                    </div>
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-surface-on-variant">到期</span>
-                      <span className="text-surface-on">
-                        {expiryDate === 'Permanent' || !expiryDate ? '永久' : expiryDate}
-                      </span>
-                    </div>
+              <div className="flex items-center gap-1.5">
+                <Cloud size={15} className={connectionMode === 'license' && isOnline ? 'text-primary' : 'text-surface-on-variant'} />
+                <span className="text-sm font-medium text-surface-on">{t.settings.cloud}</span>
+              </div>
+              {connectionMode === 'license' && isOnline && hasKey && (
+                <div className="space-y-1 mt-1.5 w-full">
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-surface-on-variant">{t.settings.keyLabel}</span>
+                    <span className="font-mono text-surface-on">{maskLicenseKey(licenseKey)}</span>
                   </div>
-                )}
-              </button>
-
-              {/* 本地 小卡片 */}
-              <button
-                type="button"
-                onClick={handleLocalCardClick}
-                className="relative flex flex-col items-start justify-center text-left rounded-lg border border-card-border bg-surface p-3 hover:border-white/20 transition-all min-h-[80px]"
-              >
-                {connectionMode === 'local' && isOnline && (
-                  <span className="absolute top-2.5 left-2.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium leading-none">
-                    当前
-                  </span>
-                )}
-                <div className="flex items-center gap-1.5">
-                  <Monitor size={13} className={connectionMode === 'local' && isOnline ? 'text-primary' : 'text-surface-on-variant'} />
-                  <span className="text-xs font-medium text-surface-on">本地 OpenClaw</span>
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-surface-on-variant">{t.settings.expiryLabel}</span>
+                    <span className="text-surface-on">
+                      {expiryDate === 'Permanent' || !expiryDate ? t.settings.expiryPermanent : expiryDate}
+                    </span>
+                  </div>
                 </div>
-              </button>
-            </div>
-          </Card>
+              )}
+            </button>
+
+            {/* 本地 卡片 */}
+            <button
+              type="button"
+              onClick={handleLocalCardClick}
+              className="relative flex flex-col items-center justify-center text-left rounded-xl border border-card-border bg-card-bg p-3 hover:border-white/20 transition-all min-h-[80px]"
+            >
+              {connectionMode === 'local' && isOnline && (
+                <span className="absolute top-2.5 left-2.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium leading-none">
+                  {t.settings.current}
+                </span>
+              )}
+              <div className="flex items-center gap-1.5">
+                <Monitor size={15} className={connectionMode === 'local' && isOnline ? 'text-primary' : 'text-surface-on-variant'} />
+                <span className="text-sm font-medium text-surface-on">{t.settings.local}</span>
+              </div>
+            </button>
+          </div>
         </section>
 
         {/* ── 节点配置 ── */}
         <section>
-          <SectionHeader title="节点配置" />
+          <SectionHeader title={t.settings.sectionNode} />
 
           {/* 飞书 */}
           {isOnline && licenseId && (
@@ -214,8 +193,8 @@ export function SettingsPage() {
               </Button>
             </Card>
             {!licenseId && (
-              <div className="absolute inset-0 bg-surface/75 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
-                <p className="text-sm text-surface-on-variant font-medium">{t.settings.activateFirst}</p>
+              <div className="absolute inset-0 bg-surface/90 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <p className="text-sm text-surface-on-variant font-extrabold">{t.settings.activateFirst}</p>
               </div>
             )}
           </div>
@@ -249,7 +228,7 @@ export function SettingsPage() {
 
         {/* ── 偏好设置 ── */}
         <section>
-          <SectionHeader title="偏好设置" />
+          <SectionHeader title={t.settings.sectionPreferences} />
           <Card>
             <div className="flex items-center gap-2 mb-4">
               <Palette size={15} className="text-primary" />
@@ -268,11 +247,10 @@ export function SettingsPage() {
                     key={loc}
                     type="button"
                     onClick={() => setLocale(loc)}
-                    className={`px-4 py-1.5 text-sm rounded-lg border transition-all ${
-                      locale === loc
-                        ? 'border-primary bg-primary/5 text-primary font-medium'
-                        : 'border-white/15 text-surface-on-variant hover:text-surface-on'
-                    }`}
+                    className={`px-4 py-1.5 text-sm rounded-lg border transition-all ${locale === loc
+                      ? 'border-primary bg-primary/5 text-primary font-medium'
+                      : 'border-white/15 text-surface-on-variant hover:text-surface-on'
+                      }`}
                   >
                     {loc === 'zh' ? '中文' : 'English'}
                   </button>
@@ -292,11 +270,10 @@ export function SettingsPage() {
                     key={key}
                     type="button"
                     onClick={() => setTheme(key)}
-                    className={`flex items-center gap-2 px-4 py-1.5 text-sm rounded-lg border transition-all ${
-                      theme === key
-                        ? 'border-primary bg-primary/5 text-primary font-medium'
-                        : 'border-white/15 text-surface-on-variant hover:text-surface-on'
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-1.5 text-sm rounded-lg border transition-all ${theme === key
+                      ? 'border-primary bg-primary/5 text-primary font-medium'
+                      : 'border-white/15 text-surface-on-variant hover:text-surface-on'
+                      }`}
                   >
                     <Icon size={14} />
                     {label}
@@ -316,7 +293,7 @@ export function SettingsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <KeyRound size={15} className="text-primary" />
-                <h3 className="text-sm font-semibold text-surface-on">License 激活</h3>
+                <h3 className="text-sm font-semibold text-surface-on">{t.settings.licenseModalTitle}</h3>
               </div>
               <button
                 type="button"
@@ -330,13 +307,13 @@ export function SettingsPage() {
             {hasKey && (
               <div className="rounded-lg border border-white/8 bg-surface px-3 py-2.5 space-y-1.5">
                 <div className="flex justify-between text-xs">
-                  <span className="text-surface-on-variant">当前 Key</span>
+                  <span className="text-surface-on-variant">{t.settings.currentKeyLabel}</span>
                   <span className="font-mono text-surface-on">{maskLicenseKey(licenseKey)}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-surface-on-variant">到期时间</span>
+                  <span className="text-surface-on-variant">{t.settings.expiryTimeLabel}</span>
                   <span className="text-surface-on">
-                    {expiryDate === 'Permanent' || !expiryDate ? '永久' : expiryDate}
+                    {expiryDate === 'Permanent' || !expiryDate ? t.settings.expiryPermanent : expiryDate}
                   </span>
                 </div>
               </div>
@@ -344,7 +321,7 @@ export function SettingsPage() {
 
             <div>
               <label className="text-xs text-surface-on-variant mb-1.5 block">
-                {hasKey ? '更换 License Key' : 'License Key'}
+                {hasKey ? t.settings.changeKey : t.settings.licenseKeyLabel}
               </label>
               <input
                 type="text"
@@ -372,9 +349,9 @@ export function SettingsPage() {
               {isLoading ? (
                 <span className="flex items-center gap-2">
                   <Loader2 size={13} className="animate-spin" />
-                  {status === 'auth_checking' ? '验证中...' : '连接中...'}
+                  {status === 'auth_checking' ? t.settings.verifying : t.settings.connecting}
                 </span>
-              ) : hasKey ? '更换并激活' : '验证并激活'}
+              ) : hasKey ? t.settings.changeAndActivate : t.settings.verifyAndActivate}
             </Button>
           </div>
         </div>
@@ -387,7 +364,7 @@ export function SettingsPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Monitor size={15} className="text-primary" />
-                <h3 className="text-sm font-semibold text-surface-on">本地 OpenClaw</h3>
+                <h3 className="text-sm font-semibold text-surface-on">{t.settings.localModalTitle}</h3>
               </div>
               <button
                 type="button"

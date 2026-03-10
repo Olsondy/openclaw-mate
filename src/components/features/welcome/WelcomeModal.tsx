@@ -3,40 +3,42 @@ import { invoke } from '@tauri-apps/api/core'
 import { KeyRound, Monitor, ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useConfigStore } from '../../../store'
+import { useT } from '../../../i18n'
 import type { ConnectionMode } from '../../../store/config.store'
 
 interface Props {
   onDone: () => void
 }
 
-const OPTIONS: {
-  mode: ConnectionMode
-  icon: React.ElementType
-  title: string
-  desc: string
-  hint: string
-}[] = [
-  {
-    mode: 'license',
-    icon: KeyRound,
-    title: 'License 激活',
-    desc: '输入 License Key 连接到云端 OpenClaw 服务，适合订阅制用户。',
-    hint: '激活后由云端统一管理配置',
-  },
-  {
-    mode: 'local',
-    icon: Monitor,
-    title: '连接本地实例',
-    desc: '自动发现并连接本机已安装的 OpenClaw，适合私有部署用户。',
-    hint: '配置存储在本地，完全离线可用',
-  },
-]
-
 export function WelcomeModal({ onDone }: Props) {
   const { setConnectionMode } = useConfigStore()
   const navigate = useNavigate()
+  const t = useT()
   const [selected, setSelected] = useState<ConnectionMode | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const OPTIONS: {
+    mode: ConnectionMode
+    icon: React.ElementType
+    title: string
+    desc: string
+    hint: string
+  }[] = [
+    {
+      mode: 'license',
+      icon: KeyRound,
+      title: t.welcome.licenseTitle,
+      desc: t.welcome.licenseDesc,
+      hint: t.welcome.licenseHint,
+    },
+    {
+      mode: 'local',
+      icon: Monitor,
+      title: t.welcome.localTitle,
+      desc: t.welcome.localDesc,
+      hint: t.welcome.localHint,
+    },
+  ]
 
   const handleConfirm = async () => {
     if (!selected) return
@@ -56,8 +58,8 @@ export function WelcomeModal({ onDone }: Props) {
       <div className="w-full max-w-xl px-4">
         {/* 标题 */}
         <div className="text-center mb-8">
-          <h1 className="text-xl font-semibold text-surface-on mb-1">欢迎使用 ClawMate</h1>
-          <p className="text-sm text-surface-on-variant">请选择连接方式，后续可在设置中切换</p>
+          <h1 className="text-xl font-semibold text-surface-on mb-1">{t.welcome.title}</h1>
+          <p className="text-sm text-surface-on-variant">{t.welcome.subtitle}</p>
         </div>
 
         {/* 选项卡片 */}
@@ -103,7 +105,7 @@ export function WelcomeModal({ onDone }: Props) {
               disabled:opacity-40 disabled:cursor-not-allowed
               hover:opacity-90 transition-opacity"
           >
-            {loading ? '正在初始化...' : '继续'}
+            {loading ? t.welcome.initializing : t.welcome.continue}
             {!loading && <ArrowRight size={15} />}
           </button>
           <button
@@ -112,7 +114,7 @@ export function WelcomeModal({ onDone }: Props) {
             onClick={onDone}
             className="w-full py-2 text-xs text-surface-on-variant hover:text-surface-on transition-colors disabled:opacity-40"
           >
-            稍后设置
+            {t.welcome.skip}
           </button>
         </div>
       </div>

@@ -4,16 +4,7 @@ import { Button } from '../../ui'
 import { useLocalConnection, type LocalConnectPhase } from '../../../hooks/useLocalConnection'
 import { useConnectionStore } from '../../../store'
 import { useTauriEvent } from '../../../hooks/useTauri'
-
-const phaseLabel: Record<LocalConnectPhase, string> = {
-  idle: '连接本地 OpenClaw',
-  scanning: '正在搜索服务...',
-  pairing: '正在配对设备...',
-  restarting: '正在重启服务...',
-  connecting: '正在连接...',
-  done: '已连接',
-  error: '重试',
-}
+import { useT } from '../../../i18n'
 
 interface Props {
   onConnected?: () => void
@@ -23,6 +14,17 @@ export function LocalConnectPanel({ onConnected }: Props) {
   const { connectLocal, phase, logs } = useLocalConnection()
   const { status, setStatus } = useConnectionStore()
   const logRef = useRef<HTMLDivElement>(null)
+  const t = useT()
+
+  const phaseLabel: Record<LocalConnectPhase, string> = {
+    idle: t.localConnect.idle,
+    scanning: t.localConnect.scanning,
+    pairing: t.localConnect.pairing,
+    restarting: t.localConnect.restarting,
+    connecting: t.localConnect.connecting,
+    done: t.localConnect.done,
+    error: t.localConnect.error,
+  }
 
   const isLoading =
     phase === 'scanning' ||
@@ -49,21 +51,20 @@ export function LocalConnectPanel({ onConnected }: Props) {
   return (
     <div className="space-y-3">
       <p className="text-xs text-surface-on-variant leading-relaxed">
-        自动搜索并连接本地安装的 OpenClaw 服务（需本机安装，不支持容器）。
-        首次连接会写入设备授权并重启服务。
+        {t.localConnect.desc}
       </p>
 
       {isOnline && (
         <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-50 text-green-700 text-sm">
           <CheckCircle size={14} />
-          <span>已连接到本地 OpenClaw</span>
+          <span>{t.localConnect.connected}</span>
         </div>
       )}
 
       {isError && (
         <div className="flex items-start gap-2 p-2.5 rounded-lg bg-error-container text-error-on-container text-sm">
           <AlertCircle size={14} className="mt-0.5 shrink-0" />
-          <span>连接失败，查看下方日志，或手动重启 openclaw 服务后重试</span>
+          <span>{t.localConnect.errorMsg}</span>
         </div>
       )}
 
@@ -94,7 +95,7 @@ export function LocalConnectPanel({ onConnected }: Props) {
         ) : isOnline ? (
           <span className="flex items-center gap-2">
             <CheckCircle size={14} />
-            已连接
+            {t.localConnect.connectedBtn}
           </span>
         ) : (
           <span className="flex items-center gap-2">

@@ -8,16 +8,24 @@ import {
   LayoutDashboard,
   Activity,
   Cpu,
-  MessageSquare
+  MessageSquare,
+  RefreshCw,
+  Loader2
 } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
-import { useConfigStore } from '../../store'
+import { useConfigStore, useConnectionStore } from '../../store'
+import { useNodeConnection } from '../../hooks/useNodeConnection'
 import { useT } from '../../i18n'
 
 export function Sidebar() {
   const { runtimeConfig } = useConfigStore()
+  const { status } = useConnectionStore()
+  const { verifyAndConnect } = useNodeConnection()
   const [collapsed, setCollapsed] = useState(false)
   const t = useT()
+
+  const isLoading = status === 'auth_checking' || status === 'connecting'
+  const isOnline = status === 'online'
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: t.sidebar.dashboard },
@@ -35,11 +43,11 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`h-screen flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out ${collapsed ? 'w-[68px]' : 'w-[240px]'
+      className={`h-screen flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out ${collapsed ? 'w-[52px]' : 'w-[200px]'
         }`}
     >
-      {/* 1. TOP: Control Header */}
-      <div className="h-14 flex items-center px-4 mb-2">
+      {/* 1. TOP: Control Header + Gateway Status */}
+      <div className={`h-14 flex items-center mb-2 gap-2 ${collapsed ? 'flex-col justify-center px-2 gap-1' : 'px-4'}`}>
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="p-2 rounded-lg text-surface-on-variant hover:bg-surface-variant/50 hover:text-surface-on transition-colors outline-none"
@@ -51,6 +59,61 @@ export function Sidebar() {
             <PanelLeftClose size={20} strokeWidth={STROKE_WIDTH} />
           )}
         </button>
+
+        {/* 网关状态：呼吸灯 + 文字 + 重连 */}
+        {!collapsed ? (
+          <div className="flex items-center gap-1.5 ml-auto">
+            <span
+              className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border ${isOnline
+                ? 'border-green-500/30 bg-green-500/10 text-green-500'
+                : 'border-surface-on-variant/20 bg-surface-variant text-surface-on-variant'
+              }`}
+            >
+              <span className="relative flex h-1.5 w-1.5">
+                {isOnline && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-60" />
+                )}
+                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isOnline ? 'bg-green-500' : 'bg-surface-on-variant'}`} />
+              </span>
+              <span className="whitespace-nowrap">
+                {isLoading ? t.sidebar.gatewayConnecting : isOnline ? t.sidebar.gatewayConnected : t.sidebar.gatewayDisconnected}
+              </span>
+            </span>
+            {!isOnline && (
+              <button
+                type="button"
+                onClick={() => verifyAndConnect()}
+                disabled={isLoading}
+                className="p-1 rounded-md text-surface-on-variant hover:text-surface-on hover:bg-surface-variant/50 transition-colors disabled:opacity-40"
+                title={t.sidebar.reconnect}
+              >
+                {isLoading ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <RefreshCw size={12} />
+                )}
+              </button>
+            )}
+          </div>
+        ) : (
+          /* 折叠态：可点击的小圆点（点击重连） */
+          <button
+            type="button"
+            onClick={() => !isOnline && verifyAndConnect()}
+            disabled={isLoading || isOnline}
+            className={`relative flex h-2.5 w-2.5 ${!isOnline ? 'cursor-pointer' : 'cursor-default'}`}
+            title={isLoading ? t.sidebar.gatewayConnecting : isOnline ? t.sidebar.gatewayConnected : t.sidebar.gatewayDisconnected}
+          >
+            {isOnline && (
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-60" />
+            )}
+            {isLoading ? (
+              <Loader2 size={10} className="animate-spin text-surface-on-variant" />
+            ) : (
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isOnline ? 'bg-green-500' : 'bg-surface-on-variant hover:bg-surface-on'}`} />
+            )}
+          </button>
+        )}
       </div>
 
       {/* 2. MIDDLE: Navigation Items */}
