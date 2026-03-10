@@ -138,7 +138,7 @@ export function SettingsPage() {
               <button
                 type="button"
                 onClick={handleLicenseCardClick}
-                className="relative flex flex-col justify-center text-left rounded-lg border border-card-border bg-surface p-3 pt-7 hover:border-white/20 transition-all min-h-[80px]"
+                className="relative flex flex-col justify-center text-left rounded-lg border border-card-border bg-surface p-3 hover:border-white/20 transition-all min-h-[80px]"
               >
                 {connectionMode === 'license' && isOnline && (
                   <span className="absolute top-2.5 left-2.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium leading-none">
@@ -169,7 +169,7 @@ export function SettingsPage() {
               <button
                 type="button"
                 onClick={handleLocalCardClick}
-                className="relative flex flex-col justify-center text-left rounded-lg border border-card-border bg-surface p-3 pt-7 hover:border-white/20 transition-all min-h-[80px]"
+                className="relative flex flex-col justify-center text-left rounded-lg border border-card-border bg-surface p-3 hover:border-white/20 transition-all min-h-[80px]"
               >
                 {connectionMode === 'local' && isOnline && (
                   <span className="absolute top-2.5 left-2.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium leading-none">
