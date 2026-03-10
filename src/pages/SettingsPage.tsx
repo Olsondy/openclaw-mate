@@ -112,19 +112,23 @@ export function SettingsPage() {
 
           {/* 大卡片容器 */}
           <Card>
-            {/* 网关状态 呼吸灯 */}
-            <div className="flex items-center gap-2 mb-4">
-              <span className="relative flex h-2 w-2">
-                {isOnline && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-60" />
-                )}
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${isOnline ? 'bg-green-500' : 'bg-surface-on-variant/30'}`} />
-              </span>
-              <span className="text-xs text-surface-on-variant">
+            {/* 网关状态 呼吸灯 badge */}
+            <div className="flex items-center gap-2.5 mb-4">
+              <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border ${
+                isOnline
+                  ? 'border-green-500/30 bg-green-500/10 text-green-500'
+                  : 'border-surface-on-variant/20 bg-surface-variant text-surface-on-variant'
+              }`}>
+                <span className="relative flex h-1.5 w-1.5">
+                  {isOnline && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-60" />
+                  )}
+                  <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isOnline ? 'bg-green-500' : 'bg-surface-on-variant'}`} />
+                </span>
                 {isLoading ? '连接中...' : isOnline ? '网关已连接' : '未连接'}
               </span>
               {!connectionMode && !isOnline && (
-                <span className="text-xs text-surface-on-variant/50">· 请选择连接方式</span>
+                <span className="text-xs text-surface-on-variant/50">请选择连接方式</span>
               )}
             </div>
 
@@ -136,7 +140,7 @@ export function SettingsPage() {
                 onClick={handleLicenseCardClick}
                 className="relative text-left rounded-lg border border-card-border bg-surface p-3 hover:border-white/20 transition-all min-h-[80px]"
               >
-                {connectionMode === 'license' && (
+                {connectionMode === 'license' && isOnline && (
                   <span className="absolute top-2.5 left-2.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium leading-none">
                     当前
                   </span>
@@ -146,7 +150,7 @@ export function SettingsPage() {
                     <KeyRound size={13} className={connectionMode === 'license' ? 'text-primary' : 'text-surface-on-variant'} />
                     <span className="text-xs font-medium text-surface-on">License 激活</span>
                   </div>
-                  {connectionMode === 'license' && hasKey && (
+                  {connectionMode === 'license' && isOnline && hasKey && (
                     <div className="space-y-1">
                       <div className="flex justify-between text-[11px]">
                         <span className="text-surface-on-variant">Key</span>
@@ -169,7 +173,7 @@ export function SettingsPage() {
                 onClick={handleLocalCardClick}
                 className="relative text-left rounded-lg border border-card-border bg-surface p-3 hover:border-white/20 transition-all min-h-[80px]"
               >
-                {connectionMode === 'local' && (
+                {connectionMode === 'local' && isOnline && (
                   <span className="absolute top-2.5 left-2.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium leading-none">
                     当前
                   </span>
