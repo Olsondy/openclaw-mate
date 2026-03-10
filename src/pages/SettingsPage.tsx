@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   KeyRound, CheckCircle, AlertCircle, Loader2, ExternalLink,
   Shield, MessageSquare, TriangleAlert, Palette, Languages,
-  Sun, Moon, Monitor, ArrowLeftRight, Cpu,
+  Sun, Moon, Monitor, ArrowLeftRight, Cpu, ArrowRight,
 } from 'lucide-react'
 import { TopBar } from '../components/layout/TopBar'
 import { Card, Button } from '../components/ui'
@@ -91,14 +91,12 @@ export function SettingsPage() {
 
           {/* 当前模式 + 切换 */}
           <Card className="mb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs text-surface-on-variant mb-0.5">当前模式</div>
-                <div className="text-sm font-medium text-surface-on">
-                  {connectionMode ? MODE_LABEL[connectionMode] : '未选择'}
+            {connectionMode ? (
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-surface-on-variant mb-0.5">当前模式</div>
+                  <div className="text-sm font-medium text-surface-on">{MODE_LABEL[connectionMode]}</div>
                 </div>
-              </div>
-              {connectionMode && (
                 <Button
                   variant="outlined"
                   size="sm"
@@ -107,8 +105,29 @@ export function SettingsPage() {
                   <ArrowLeftRight size={13} className="mr-1.5" />
                   切换到 {connectionMode === 'license' ? '本地' : 'License'}
                 </Button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div>
+                <div className="text-xs text-surface-on-variant mb-3">选择连接方式</div>
+                <div className="flex gap-2">
+                  {(['license', 'local'] as ConnectionMode[]).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={async () => {
+                        const { invoke } = await import('@tauri-apps/api/core')
+                        await invoke('save_app_config', { config: { connectionMode: mode } })
+                        setConnectionMode(mode)
+                      }}
+                      className="flex-1 flex items-center justify-between px-3 py-2.5 rounded-lg border border-card-border bg-surface hover:border-white/20 transition-all text-left"
+                    >
+                      <span className="text-sm text-surface-on">{MODE_LABEL[mode]}</span>
+                      <ArrowRight size={13} className="text-surface-on-variant" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </Card>
 
           {/* License 模式内容 */}
