@@ -84,7 +84,7 @@ describe("SettingsPage breathing indicators", () => {
 				);
 				expect(localConnectCalls.length).toBeGreaterThan(1);
 			},
-			{ timeout: 3500 },
+			{ timeout: 7500 },
 		);
 	});
 });

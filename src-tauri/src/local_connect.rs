@@ -101,16 +101,28 @@ async fn run_openclaw_daemon(action: &str) -> Result<String, String> {
 
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let merged = if stderr.is_empty() {
+        stdout.clone()
+    } else if stdout.is_empty() {
+        stderr.clone()
+    } else {
+        format!("{}\n{}", stdout, stderr)
+    };
 
     if output.status.success() {
-        if stdout.is_empty() && stderr.is_empty() {
+        // 某些环境里 daemon 命令会返回成功，但提示服务未安装（实际上不会启动）
+        // 这时回退到 `openclaw gateway` 直接拉起本地网关进程。
+        if (action == "start" || action == "restart") && merged.contains("Gateway service missing") {
+            let fallback = run_openclaw_gateway_detached().await?;
+            if merged.is_empty() {
+                Ok(fallback)
+            } else {
+                Ok(format!("{}\n{}", merged, fallback))
+            }
+        } else if merged.is_empty() {
             Ok(format!("openclaw daemon {} ok", action))
-        } else if stderr.is_empty() {
-            Ok(stdout)
-        } else if stdout.is_empty() {
-            Ok(stderr)
         } else {
-            Ok(format!("{}\n{}", stdout, stderr))
+            Ok(merged)
         }
     } else {
         let msg = if !stderr.is_empty() {
@@ -119,6 +131,41 @@ async fn run_openclaw_daemon(action: &str) -> Result<String, String> {
             stdout
         } else {
             format!("openclaw daemon {} failed", action)
+        };
+        Err(msg)
+    }
+}
+
+async fn run_openclaw_gateway_detached() -> Result<String, String> {
+    let output = if cfg!(target_os = "windows") {
+        tokio::process::Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                "Start-Process -FilePath 'openclaw' -ArgumentList 'gateway' -WindowStyle Hidden",
+            ])
+            .output()
+            .await
+            .map_err(|e| format!("执行 openclaw gateway 启动命令失败: {}", e))?
+    } else {
+        tokio::process::Command::new("sh")
+            .args(["-c", "nohup openclaw gateway >/tmp/openclaw-gateway.log 2>&1 &"])
+            .output()
+            .await
+            .map_err(|e| format!("执行 openclaw gateway 启动命令失败: {}", e))?
+    };
+
+    if output.status.success() {
+        Ok("已尝试使用 openclaw gateway 启动本地网关进程".to_string())
+    } else {
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let msg = if !stderr.is_empty() {
+            stderr
+        } else if !stdout.is_empty() {
+            stdout
+        } else {
+            "openclaw gateway 启动命令执行失败".to_string()
         };
         Err(msg)
     }

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { ChannelAuthDialog } from "./components/features/channel-auth/ChannelAuthDialog";
 import { WelcomeModal } from "./components/features/welcome/WelcomeModal";
@@ -101,7 +102,10 @@ export default function App() {
 	return (
 		<BrowserRouter>
 			<AppInner />
-			<Toaster position="top-center" richColors />
+			{createPortal(
+				<Toaster position="top-center" richColors />,
+				document.body,
+			)}
 		</BrowserRouter>
 	);
 }

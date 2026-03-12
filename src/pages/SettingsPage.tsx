@@ -103,6 +103,10 @@ export function SettingsPage() {
 	const [directAddress, setDirectAddress] = useState(directCloudAddress);
 	const [directToken, setDirectToken] = useState("");
 	const [directLoading, setDirectLoading] = useState(false);
+	const [directStatus, setDirectStatus] = useState<{
+		level: "info" | "error";
+		message: string;
+	} | null>(null);
 	const [directActionLoading, setDirectActionLoading] = useState<
 		| "local-connect"
 		| "local-stop"
@@ -207,7 +211,10 @@ export function SettingsPage() {
 						action === "start"
 							? t.settings.actionLocalStarting
 							: t.settings.actionLocalRestarting;
-					toast.message(actionMessage);
+					setDirectStatus({
+						level: "info",
+						message: actionMessage,
+					});
 					addDirectActionLog(
 						"warning",
 						`Mate: Local direct auto-recover (${action})`,
@@ -215,7 +222,7 @@ export function SettingsPage() {
 						["mate", "connection", "local", "recover", action],
 					);
 					await invoke("local_gateway_daemon", { action });
-					await sleep(1200);
+					await sleep(3500);
 					await connectDiscoveredLocalGateway();
 					addDirectActionLog(
 						"success",
@@ -257,12 +264,16 @@ export function SettingsPage() {
 	const handleDirectCardClick = () => {
 		setDirectTarget(null);
 		setDirectAddress(directCloudAddress);
+		setDirectStatus(null);
 		setDirectModalOpen(true);
 	};
 
 	const closeDirectModalSuccess = (msg: string) => {
-		toast.success(msg);
+		setDirectStatus(null);
 		setDirectModalOpen(false);
+		window.setTimeout(() => {
+			toast.success(msg);
+		}, 40);
 	};
 
 	const disconnectGatewaySession = async () => {
@@ -274,8 +285,11 @@ export function SettingsPage() {
 	const doConnectDirectCloud = async () => {
 		if (!directAddress.trim()) return;
 		setDirectLoading(true);
+		setDirectStatus({
+			level: "info",
+			message: t.settings.actionCloudConnecting,
+		});
 		try {
-			toast.message(t.settings.actionCloudConnecting);
 			const normalized = normalizeGatewayEndpoint(directAddress);
 			const ok = await connectDirectGateway({
 				gatewayUrl: normalized.gatewayUrl,
@@ -291,6 +305,11 @@ export function SettingsPage() {
 			});
 			setConnectionMode("local");
 			closeDirectModalSuccess(t.settings.actionCloudConnected);
+		} catch (e) {
+			setDirectStatus({
+				level: "error",
+				message: String(e),
+			});
 		} finally {
 			setDirectLoading(false);
 		}
@@ -299,13 +318,19 @@ export function SettingsPage() {
 	const handleLocalStop = async () => {
 		setDirectActionLoading("local-stop");
 		try {
-			toast.message(t.settings.actionLocalStopping);
+			setDirectStatus({
+				level: "info",
+				message: t.settings.actionLocalStopping,
+			});
 			await invoke("local_gateway_daemon", { action: "stop" });
 			await disconnectGatewaySession();
 			setDirectMode("local");
 			closeDirectModalSuccess(t.settings.actionLocalStopped);
 		} catch (e) {
-			toast.error(String(e));
+			setDirectStatus({
+				level: "error",
+				message: String(e),
+			});
 		} finally {
 			setDirectActionLoading(null);
 		}
@@ -314,7 +339,10 @@ export function SettingsPage() {
 	const handleLocalConnect = async () => {
 		setDirectActionLoading("local-connect");
 		try {
-			toast.message(t.localConnect.connecting);
+			setDirectStatus({
+				level: "info",
+				message: t.localConnect.connecting,
+			});
 			addDirectActionLog(
 				"info",
 				"Mate: Local direct connect preparing",
@@ -330,7 +358,10 @@ export function SettingsPage() {
 			closeDirectModalSuccess(t.localConnect.connected);
 		} catch (e) {
 			const msg = String(e);
-			toast.error(msg);
+			setDirectStatus({
+				level: "error",
+				message: msg,
+			});
 			addDirectActionLog(
 				"error",
 				"Mate: Local direct connect failed",
@@ -345,7 +376,10 @@ export function SettingsPage() {
 	const handleLocalRestart = async () => {
 		setDirectActionLoading("local-restart");
 		try {
-			toast.message(t.settings.actionLocalRestarting);
+			setDirectStatus({
+				level: "info",
+				message: t.settings.actionLocalRestarting,
+			});
 			addDirectActionLog(
 				"info",
 				"Mate: Local gateway restart requested",
@@ -373,7 +407,10 @@ export function SettingsPage() {
 			closeDirectModalSuccess(t.settings.actionLocalRestarted);
 		} catch (e) {
 			const msg = String(e);
-			toast.error(msg);
+			setDirectStatus({
+				level: "error",
+				message: msg,
+			});
 			addDirectActionLog(
 				"error",
 				"Mate: Local gateway restart failed",
@@ -388,7 +425,10 @@ export function SettingsPage() {
 	const handleCloudDisconnect = async () => {
 		setDirectActionLoading("cloud-disconnect");
 		try {
-			toast.message(t.settings.actionCloudDisconnecting);
+			setDirectStatus({
+				level: "info",
+				message: t.settings.actionCloudDisconnecting,
+			});
 			addDirectActionLog(
 				"info",
 				"Mate: Cloud direct disconnect requested",
@@ -399,7 +439,10 @@ export function SettingsPage() {
 			closeDirectModalSuccess(t.settings.actionCloudDisconnected);
 		} catch (e) {
 			const msg = String(e);
-			toast.error(msg);
+			setDirectStatus({
+				level: "error",
+				message: msg,
+			});
 			addDirectActionLog(
 				"error",
 				"Mate: Cloud direct disconnect failed",
@@ -414,10 +457,16 @@ export function SettingsPage() {
 	const handleCloudRestart = async () => {
 		setDirectActionLoading("cloud-restart");
 		try {
-			toast.message(t.settings.actionCloudRestarting);
+			setDirectStatus({
+				level: "info",
+				message: t.settings.actionCloudRestarting,
+			});
 			const currentAddr = directAddress.trim() || directCloudAddress.trim();
 			if (!currentAddr) {
-				toast.error(t.settings.cloudGatewayAddrRequired);
+				setDirectStatus({
+					level: "error",
+					message: t.settings.cloudGatewayAddrRequired,
+				});
 				return;
 			}
 			const normalized = normalizeGatewayEndpoint(currentAddr);
@@ -437,7 +486,10 @@ export function SettingsPage() {
 			setConnectionMode("local");
 			closeDirectModalSuccess(t.settings.actionCloudRestarted);
 		} catch (e) {
-			toast.error(String(e));
+			setDirectStatus({
+				level: "error",
+				message: String(e),
+			});
 		} finally {
 			setDirectActionLoading(null);
 		}
@@ -831,12 +883,26 @@ export function SettingsPage() {
 							</div>
 							<button
 								type="button"
-								onClick={() => setDirectModalOpen(false)}
+								onClick={() => {
+									setDirectStatus(null);
+									setDirectModalOpen(false);
+								}}
 								className="text-surface-on-variant hover:text-surface-on transition-colors"
 							>
 								<X size={15} />
 							</button>
 						</div>
+						{directStatus && (
+							<div
+								className={`rounded-lg border px-3 py-2 text-xs ${
+									directStatus.level === "error"
+										? "border-red-500/40 bg-red-500/10 text-red-300"
+										: "border-primary/40 bg-primary/10 text-primary"
+								}`}
+							>
+								{directStatus.message}
+							</div>
+						)}
 
 						{directTarget === null && (
 							<div className="space-y-3">

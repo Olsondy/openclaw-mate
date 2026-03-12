@@ -111,4 +111,15 @@
   .ripple:active::after {
     @apply opacity-10;
   }
+
+  /* Sonner 在某些 WebView 层叠上下文下会被 modal 遮罩压住，强制顶层并固定顶部。 */
+  [data-sonner-toaster] {
+    position: fixed !important;
+    z-index: 2147483647 !important;
+  }
+
+  [data-sonner-toaster][data-y-position='bottom'] {
+    top: 16px !important;
+    bottom: auto !important;
+  }
 }
