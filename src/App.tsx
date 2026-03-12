@@ -103,9 +103,12 @@ function AppInner() {
 	const hydrateLogsFromFile = useTasksStore((s) => s.hydrateLogsFromFile);
 	const {
 		setConnectionMode,
+		licenseKey,
 		setLicenseKey,
 		setDirectMode,
 		setDirectCloudAddress,
+		directMode,
+		directCloudAddress,
 		hasConnectedOnce,
 		skipModelGuide,
 		skipFeishuGuide,
@@ -131,7 +134,7 @@ function AppInner() {
 				const profile = await invoke<LicenseProfileSnapshot | null>(
 					"get_license_profile",
 				).catch(() => null);
-				const key = profile?.licenseKey?.trim();
+				const key = profile?.licenseKey?.trim() || licenseKey.trim();
 				if (!key) return false;
 				setLicenseKey(key);
 				return verifyAndConnect(key);
@@ -141,14 +144,8 @@ function AppInner() {
 			const profile = await invoke<LocalProfileSnapshot | null>(
 				"get_local_profile",
 			).catch(() => null);
-			const endpoint = (
-				profile?.gatewayUrl ||
-				profile?.gatewayWebUI ||
-				""
-			).trim();
-			if (!endpoint) return false;
 
-			if (isLoopbackEndpoint(endpoint)) {
+			const reconnectLocalGateway = async (): Promise<boolean> => {
 				const discovered = await invoke<{
 					gateway_url: string;
 					gateway_web_ui: string;
@@ -187,6 +184,26 @@ function AppInner() {
 					setDirectCloudAddress("");
 				}
 				return ok;
+			};
+
+			let endpoint = (
+				profile?.gatewayUrl ||
+				profile?.gatewayWebUI ||
+				""
+			).trim();
+			if (!endpoint) {
+				if (directMode === "local") {
+					return reconnectLocalGateway();
+				}
+				if (directMode === "cloud" && directCloudAddress.trim()) {
+					endpoint = directCloudAddress.trim();
+				} else {
+					return false;
+				}
+			}
+
+			if (isLoopbackEndpoint(endpoint)) {
+				return reconnectLocalGateway();
 			}
 
 			setAutoReconnectText(t.welcome.autoReconnectDirectCloud);
@@ -205,6 +222,9 @@ function AppInner() {
 		},
 		[
 			connectDirectGateway,
+			directCloudAddress,
+			directMode,
+			licenseKey,
 			setDirectCloudAddress,
 			setDirectMode,
 			setLicenseKey,

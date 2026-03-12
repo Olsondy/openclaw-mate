@@ -255,20 +255,27 @@ pub async fn connect_gateway(
     let app_for_loop = app.clone();
     tauri::async_runtime::spawn(async move {
         // 处理消息循环
-        while let Some(msg) = read.next().await {
-            match msg {
-                Ok(Message::Text(text)) => {
+        loop {
+            match read.next().await {
+                Some(Ok(Message::Text(text))) => {
                     handle_gateway_message(&app_for_loop, &text).await;
                 }
-                Ok(Message::Close(_)) => {
+                Some(Ok(Message::Close(_))) => {
                     app_for_loop.emit("ws:disconnected", ()).ok();
                     break;
                 }
-                Err(e) => {
+                Some(Err(e)) => {
                     app_for_loop.emit("ws:error", e.to_string()).ok();
+                    app_for_loop.emit("ws:disconnected", ()).ok();
                     break;
                 }
-                _ => {}
+                Some(_) => {}
+                None => {
+                    // 对端异常退出（例如手动停止 gateway）时，Stream 会结束为 None。
+                    // 这里必须显式通知前端断开，避免状态卡在 online。
+                    app_for_loop.emit("ws:disconnected", ()).ok();
+                    break;
+                }
             }
         }
 

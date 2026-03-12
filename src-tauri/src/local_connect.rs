@@ -886,11 +886,17 @@ fn system_runtime_source_candidates() -> Vec<PathBuf> {
     }
     if let Ok(appdata) = std::env::var("APPDATA") {
         candidates.push(
-            PathBuf::from(appdata)
+            PathBuf::from(&appdata)
                 .join("npm")
                 .join("node_modules")
-                .join("@qingchencloud")
-                .join("openclaw-zh"),
+                .join("openclaw"),
+        );
+        candidates.push(
+            PathBuf::from(&appdata)
+                .join("npm")
+                .join("node_modules")
+                .join("@openclaw")
+                .join("openclaw"),
         );
     }
     candidates

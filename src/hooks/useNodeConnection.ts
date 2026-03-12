@@ -161,6 +161,38 @@ export function useNodeConnection() {
 				});
 				setStatus("online");
 				markConnectedOnce();
+				try {
+					await invoke("save_app_config", {
+						config: { connectionMode: "tenant" },
+					});
+				} catch (persistError) {
+					addConnectionLog(
+						"warning",
+						"Mate: Tenant mode persist failed",
+						String(persistError),
+						["mate", "connection", "tenant", "persist", "mode", "failed"],
+					);
+				}
+				try {
+					await invoke("save_license_profile", {
+						profile: {
+							licenseKey: effectiveLicenseKey,
+							licenseId: nodeConfig.licenseId ?? null,
+							gatewayEndpoint: nodeConfig.gatewayUrl,
+							gatewayWebUI: nodeConfig.gatewayWebUI,
+							expiryDate: userProfile.expiryDate || "",
+							modelConfigSnapshot: null,
+							approvalRules: null,
+						},
+					});
+				} catch (persistError) {
+					addConnectionLog(
+						"warning",
+						"Mate: Tenant profile persist failed",
+						String(persistError),
+						["mate", "connection", "tenant", "persist", "profile", "failed"],
+					);
+				}
 				addConnectionLog(
 					"success",
 					"Mate: Tenant gateway connected",
@@ -251,6 +283,37 @@ export function useNodeConnection() {
 				});
 				setStatus("online");
 				markConnectedOnce();
+				try {
+					await invoke("save_app_config", {
+						config: { connectionMode: "direct" },
+					});
+				} catch (persistError) {
+					addConnectionLog(
+						"warning",
+						"Mate: Direct mode persist failed",
+						String(persistError),
+						["mate", "connection", "direct", "persist", "mode", "failed"],
+					);
+				}
+				try {
+					await invoke("save_local_profile", {
+						profile: {
+							gatewayUrl,
+							gatewayWebUI,
+							gatewayToken: gatewayToken || null,
+							agentId: identity.device_id,
+							deviceName,
+							lastConnectedAt: new Date().toISOString(),
+						},
+					});
+				} catch (persistError) {
+					addConnectionLog(
+						"warning",
+						"Mate: Direct profile persist failed",
+						String(persistError),
+						["mate", "connection", "direct", "persist", "profile", "failed"],
+					);
+				}
 				addConnectionLog(
 					"success",
 					"Mate: Direct gateway connected",
