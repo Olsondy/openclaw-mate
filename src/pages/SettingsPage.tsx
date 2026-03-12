@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { SwitchModeDialog } from "../components/features/settings/SwitchModeDialog";
 import { ApiWizard } from "../components/features/wizard/ApiWizard";
 import { TopBar } from "../components/layout/TopBar";
 import { Button, Card, Switch } from "../components/ui";
@@ -95,6 +94,7 @@ export function SettingsPage() {
 	const {
 		licenseKey,
 		expiryDate,
+		licenseId,
 		setLicenseKey,
 		capabilities,
 		toggleCapability,
@@ -107,6 +107,7 @@ export function SettingsPage() {
 		directCloudAddress,
 		setDirectCloudAddress,
 		runtimeConfig,
+		resetForModeSwitch,
 	} = useConfigStore();
 	const { status, errorMessage, setStatus } = useConnectionStore();
 	const { verifyAndConnect, connectDirectGateway } = useNodeConnection();
@@ -139,6 +140,7 @@ export function SettingsPage() {
 		toMode: ConnectionMode;
 		openTarget: "tenant" | "direct";
 	} | null>(null);
+	const [switchModeLoading, setSwitchModeLoading] = useState(false);
 	const [cachedLicenseProfile, setCachedLicenseProfile] =
 		useState<LicenseProfileSnapshot | null>(null);
 	const [cachedLocalProfile, setCachedLocalProfile] =
@@ -244,6 +246,35 @@ export function SettingsPage() {
 		setDirectTarget("cloud");
 		setDirectAddress(endpoint);
 		setDirectToken(profile.gatewayToken?.trim() ?? "");
+	};
+
+	const persistSwitchSourceProfile = async (fromMode: ConnectionMode) => {
+		if (fromMode === "tenant" && licenseKey.trim()) {
+			await invoke("save_license_profile", {
+				profile: {
+					licenseKey: licenseKey.trim(),
+					licenseId: licenseId ?? null,
+					gatewayEndpoint: runtimeConfig?.gatewayUrl ?? "",
+					gatewayWebUI: runtimeConfig?.gatewayWebUI ?? "",
+					expiryDate,
+					modelConfigSnapshot: null,
+					approvalRules: approvalRules as unknown as Record<string, string>,
+				},
+			});
+			return;
+		}
+		if (fromMode === "direct" && runtimeConfig) {
+			await invoke("save_local_profile", {
+				profile: {
+					gatewayUrl: runtimeConfig.gatewayUrl,
+					gatewayWebUI: runtimeConfig.gatewayWebUI,
+					gatewayToken: runtimeConfig.gatewayToken || null,
+					agentId: runtimeConfig.agentId,
+					deviceName: runtimeConfig.deviceName,
+					lastConnectedAt: new Date().toISOString(),
+				},
+			});
+		}
 	};
 
 	const connectDiscoveredLocalGateway = async () => {
@@ -358,39 +389,65 @@ export function SettingsPage() {
 
 	const handleSwitchModeConfirm = async () => {
 		if (!switchModeRequest) return;
+		setSwitchModeLoading(true);
 		const target = switchModeRequest;
-		addDirectActionLog(
-			"info",
-			"Mate: Mode switch requested",
-			`${target.fromMode} -> ${target.toMode}`,
-			["mate", "connection", "mode", "switch", target.fromMode, target.toMode],
-		);
-		await disconnectGatewaySession();
-		setConnectionMode(target.toMode);
-		const { licenseProfile, localProfile } = await loadCachedProfiles();
-		addDirectActionLog(
-			"success",
-			"Mate: Mode switched",
-			`${target.fromMode} -> ${target.toMode}`,
-			[
-				"mate",
-				"connection",
-				"mode",
-				"switched",
-				target.fromMode,
-				target.toMode,
-			],
-		);
-		setSwitchModeRequest(null);
-		if (target.openTarget === "tenant") {
-			if (licenseProfile?.licenseKey) {
-				setNewKey(licenseProfile.licenseKey);
+		try {
+			addDirectActionLog(
+				"info",
+				"Mate: Mode switch requested",
+				`${target.fromMode} -> ${target.toMode}`,
+				[
+					"mate",
+					"connection",
+					"mode",
+					"switch",
+					target.fromMode,
+					target.toMode,
+				],
+			);
+			await persistSwitchSourceProfile(target.fromMode);
+			await invoke("save_app_config", {
+				config: { connectionMode: target.toMode },
+			});
+			resetForModeSwitch();
+			await disconnectGatewaySession();
+			setConnectionMode(target.toMode);
+			const { licenseProfile, localProfile } = await loadCachedProfiles();
+			addDirectActionLog(
+				"success",
+				"Mate: Mode switched",
+				`${target.fromMode} -> ${target.toMode}`,
+				[
+					"mate",
+					"connection",
+					"mode",
+					"switched",
+					target.fromMode,
+					target.toMode,
+				],
+			);
+			setSwitchModeRequest(null);
+			if (target.openTarget === "tenant") {
+				if (licenseProfile?.licenseKey) {
+					setNewKey(licenseProfile.licenseKey);
+				}
+				setLicenseModalOpen(true);
+				return;
 			}
-			setLicenseModalOpen(true);
-			return;
+			openDirectModal();
+			applyDirectProfileDraft(localProfile);
+		} catch (e) {
+			const msg = String(e);
+			addDirectActionLog(
+				"error",
+				"Mate: Mode switch failed",
+				msg || "Unknown error",
+				["mate", "connection", "mode", "switch", "failed"],
+			);
+			toast.error(msg || t.settings.switchModeConfirm);
+		} finally {
+			setSwitchModeLoading(false);
 		}
-		openDirectModal();
-		applyDirectProfileDraft(localProfile);
 	};
 
 	const handleRestoreTenantConnection = async () => {
@@ -1410,12 +1467,54 @@ export function SettingsPage() {
 				/>
 			)}
 			{switchModeRequest && (
-				<SwitchModeDialog
-					fromMode={switchModeRequest.fromMode}
-					toMode={switchModeRequest.toMode}
-					onCancel={() => setSwitchModeRequest(null)}
-					onConfirm={handleSwitchModeConfirm}
-				/>
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+					<div className="bg-card-bg border border-card-border rounded-xl shadow-2xl ring-1 ring-white/10 w-full max-w-sm p-5 space-y-4">
+						<div className="flex items-center gap-2">
+							<TriangleAlert size={16} className="text-yellow-500 shrink-0" />
+							<h3 className="text-sm font-semibold text-surface-on">
+								{t.settings.switchModeTitle}
+							</h3>
+						</div>
+						<p className="text-xs text-surface-on-variant leading-relaxed">
+							{switchModeRequest.fromMode === "tenant"
+								? t.settings.switchModeDescLicenseToLocal
+								: t.settings.switchModeDescLocalToLicense}
+						</p>
+						<ul className="text-xs text-surface-on-variant space-y-1 pl-1">
+							{[
+								t.settings.switchModeResetItemToken,
+								t.settings.switchModeResetItemSession,
+								t.settings.switchModeResetItemApproval,
+							].map((item) => (
+								<li key={item} className="flex items-start gap-1.5">
+									<span className="mt-0.5">•</span>
+									<span>{item}</span>
+								</li>
+							))}
+						</ul>
+						<div className="flex gap-2 pt-1">
+							<Button
+								variant="outlined"
+								className="flex-1"
+								onClick={() => setSwitchModeRequest(null)}
+								disabled={switchModeLoading}
+							>
+								{t.settings.cancel}
+							</Button>
+							<Button
+								className="flex-1"
+								onClick={handleSwitchModeConfirm}
+								disabled={switchModeLoading}
+							>
+								{switchModeLoading ? (
+									<Loader2 size={14} className="animate-spin" />
+								) : (
+									t.settings.switchModeConfirm
+								)}
+							</Button>
+						</div>
+					</div>
+				</div>
 			)}
 		</>
 	);

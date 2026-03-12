@@ -34,5 +34,5 @@
 
 - [x] 将 `connectionMode` 的内部值从 `license/local` 迁移到 `tenant/direct`（保留启动时对旧值的兼容映射）。
 - [x] 清理已废弃的 `bootstrap.store`。
-- [ ] 评估并清理 `SwitchModeDialog`（若切换确认逻辑有替代方案）。
+- [x] 清理 `SwitchModeDialog`，切换确认逻辑收敛到 `SettingsPage` 内部。
 - [x] 为 `FeishuWizard` / `TelegramWizard` 增补 operator 流程测试。
