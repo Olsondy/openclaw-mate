@@ -31,6 +31,36 @@ struct StoredIdentity {
     private_key_raw: String,
 }
 
+fn decode_key_32(raw: &str) -> Option<[u8; 32]> {
+    let decoded = URL_SAFE_NO_PAD.decode(raw).ok()?;
+    decoded.try_into().ok()
+}
+
+fn is_stored_identity_valid(stored: &StoredIdentity) -> bool {
+    if stored.version != 1
+        || stored.device_id.trim().is_empty()
+        || stored.public_key_raw.trim().is_empty()
+        || stored.private_key_raw.trim().is_empty()
+    {
+        return false;
+    }
+
+    let Some(public_key_bytes) = decode_key_32(&stored.public_key_raw) else {
+        return false;
+    };
+    let Some(private_key_bytes) = decode_key_32(&stored.private_key_raw) else {
+        return false;
+    };
+
+    let signing_key = SigningKey::from_bytes(&private_key_bytes);
+    let verifying_key = signing_key.verifying_key();
+    if verifying_key.to_bytes() != public_key_bytes {
+        return false;
+    }
+
+    derive_device_id(&public_key_bytes) == stored.device_id
+}
+
 /// 从原始 32 字节公钥推导 deviceId（SHA-256 → hex）
 pub fn derive_device_id(public_key_bytes: &[u8]) -> String {
     let hash = Sha256::digest(public_key_bytes);
@@ -53,17 +83,14 @@ pub fn load_or_create_device_identity(app: &tauri::AppHandle) -> Result<DeviceId
     // 尝试从 store 读取已有身份
     if let Some(val) = store.get("device_identity") {
         if let Ok(stored) = serde_json::from_value::<StoredIdentity>(val.clone()) {
-            if stored.version == 1
-                && !stored.device_id.is_empty()
-                && !stored.public_key_raw.is_empty()
-                && !stored.private_key_raw.is_empty()
-            {
+            if is_stored_identity_valid(&stored) {
                 return Ok(DeviceIdentity {
                     device_id: stored.device_id,
                     public_key_raw: stored.public_key_raw,
                     private_key_raw: Some(stored.private_key_raw),
                 });
             }
+            eprintln!("[device_identity] 检测到本地身份缓存无效，自动重建");
         }
     }
 
@@ -116,4 +143,39 @@ pub fn sign_payload(private_key_raw: &str, payload: &str) -> Result<String, Stri
     let signature = signing_key.sign(payload.as_bytes());
 
     Ok(URL_SAFE_NO_PAD.encode(signature.to_bytes()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_well_formed_stored_identity() {
+        let (signing_key, verifying_key) = generate_keypair();
+        let pub_bytes = verifying_key.to_bytes();
+        let priv_bytes = signing_key.to_bytes();
+        let stored = StoredIdentity {
+            version: 1,
+            device_id: derive_device_id(&pub_bytes),
+            public_key_raw: URL_SAFE_NO_PAD.encode(pub_bytes),
+            private_key_raw: URL_SAFE_NO_PAD.encode(priv_bytes),
+        };
+
+        assert!(is_stored_identity_valid(&stored));
+    }
+
+    #[test]
+    fn rejects_invalid_base64_private_key() {
+        let (signing_key, verifying_key) = generate_keypair();
+        let pub_bytes = verifying_key.to_bytes();
+        let _priv_bytes = signing_key.to_bytes();
+        let stored = StoredIdentity {
+            version: 1,
+            device_id: derive_device_id(&pub_bytes),
+            public_key_raw: URL_SAFE_NO_PAD.encode(pub_bytes),
+            private_key_raw: "dev-private-key".to_string(),
+        };
+
+        assert!(!is_stored_identity_valid(&stored));
+    }
 }

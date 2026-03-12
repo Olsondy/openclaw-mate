@@ -93,7 +93,11 @@ impl SidecarManager {
 
         let child = Arc::new(Mutex::new(child));
 
-        Ok(Self { stdin, pending, child })
+        Ok(Self {
+            stdin,
+            pending,
+            child,
+        })
     }
 
     pub async fn kill(&self) {

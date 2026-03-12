@@ -15,7 +15,7 @@ use std::time::Duration;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
-use tokio::sync::{Mutex, oneshot};
+use tokio::sync::{oneshot, Mutex};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use url::Url;
 
@@ -134,15 +134,11 @@ pub struct RpcResponse {
 // ─── Operator 连接状态 ───────────────────────────────────────────
 
 type OpSink = futures_util::stream::SplitSink<
-    tokio_tungstenite::WebSocketStream<
-        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-    >,
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
     Message,
 >;
 type OpRead = futures_util::stream::SplitStream<
-    tokio_tungstenite::WebSocketStream<
-        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-    >
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
 >;
 
 struct OperatorState {
@@ -317,13 +313,16 @@ pub async fn op_connect(
                         let _ = req.tx.send(RpcResponse {
                             ok: false,
                             payload: None,
-                            error: Some(serde_json::json!({"message": "operator connection closed"})),
+                            error: Some(
+                                serde_json::json!({"message": "operator connection closed"}),
+                            ),
                         });
                     }
                 }
             }
             Err(e) => {
-                app.emit("op:error", format!("operator 连接失败: {}", e)).ok();
+                app.emit("op:error", format!("operator 连接失败: {}", e))
+                    .ok();
             }
         }
     });
@@ -342,10 +341,7 @@ pub async fn op_connect(
 /// // result = { ok: true, payload: { ... }, error: null }
 /// ```
 #[tauri::command]
-pub async fn op_call(
-    method: String,
-    params: serde_json::Value,
-) -> Result<RpcResponse, String> {
+pub async fn op_call(method: String, params: serde_json::Value) -> Result<RpcResponse, String> {
     let state = get_op_state();
     let (req_id, rx) = {
         let mut st = state.lock().await;
@@ -456,8 +452,8 @@ fn build_device_info(
         std::env::consts::OS,
         OPERATOR_DEVICE_FAMILY
     );
-    let signature = sign_payload(private_key, &payload)
-        .map_err(|e| format!("operator 设备签名失败: {}", e))?;
+    let signature =
+        sign_payload(private_key, &payload).map_err(|e| format!("operator 设备签名失败: {}", e))?;
 
     Ok(DeviceInfo {
         id: agent_id.to_string(),
@@ -469,11 +465,7 @@ fn build_device_info(
 }
 
 /// 处理 operator 连接收到的 Gateway 消息
-async fn handle_op_message(
-    app: &tauri::AppHandle,
-    state: &Arc<Mutex<OperatorState>>,
-    text: &str,
-) {
+async fn handle_op_message(app: &tauri::AppHandle, state: &Arc<Mutex<OperatorState>>, text: &str) {
     let msg: GatewayMessage = match serde_json::from_str(text) {
         Ok(m) => m,
         Err(_) => return,
@@ -512,19 +504,20 @@ async fn handle_op_message(
 
         "event" => {
             // 转发 Gateway 事件到前端
-            app.emit("op:event", serde_json::json!({
-                "raw": text
-            })).ok();
+            app.emit(
+                "op:event",
+                serde_json::json!({
+                    "raw": text
+                }),
+            )
+            .ok();
         }
 
         _ => {}
     }
 }
 
-async fn reset_operator_state_after_failure(
-    state: &Arc<Mutex<OperatorState>>,
-    reason: &str,
-) {
+async fn reset_operator_state_after_failure(state: &Arc<Mutex<OperatorState>>, reason: &str) {
     let mut st = state.lock().await;
     st.sink = None;
     st.connected = false;
@@ -538,8 +531,7 @@ async fn reset_operator_state_after_failure(
 }
 
 fn build_gateway_ws_url(gateway_url: &str, token: &str) -> Result<String, String> {
-    let mut url = Url::parse(gateway_url)
-        .map_err(|e| format!("无效的 gateway 地址: {}", e))?;
+    let mut url = Url::parse(gateway_url).map_err(|e| format!("无效的 gateway 地址: {}", e))?;
 
     match url.scheme() {
         "ws" | "wss" => {}

@@ -46,10 +46,7 @@ fn validate_day_key(day_key: &str) -> Result<(), String> {
 
 fn today_log_path(day_key: &str) -> Result<PathBuf, String> {
     validate_day_key(day_key)?;
-    Ok(crate::app_paths::app_logs_dir()?.join(format!(
-        "{}{}{}",
-        LOG_PREFIX, day_key, LOG_SUFFIX
-    )))
+    Ok(crate::app_paths::app_logs_dir()?.join(format!("{}{}{}", LOG_PREFIX, day_key, LOG_SUFFIX)))
 }
 
 fn is_activity_log_file(path: &Path) -> bool {
@@ -77,7 +74,11 @@ fn cleanup_old_logs(logs_dir: &Path, keep: Option<&Path>) -> Result<(), String> 
             }
         }
         if let Err(err) = fs::remove_file(&path) {
-            eprintln!("[activity_log_store] 删除旧日志文件失败 {}: {}", path.display(), err);
+            eprintln!(
+                "[activity_log_store] 删除旧日志文件失败 {}: {}",
+                path.display(),
+                err
+            );
         }
     }
     Ok(())
@@ -89,8 +90,7 @@ pub fn append_activity_log(day_key: String, entry: StoredActivityLog) -> Result<
     let logs_dir = crate::app_paths::app_logs_dir()?;
     cleanup_old_logs(&logs_dir, Some(&log_path))?;
 
-    let line = serde_json::to_string(&entry)
-        .map_err(|e| format!("序列化日志失败: {}", e))?;
+    let line = serde_json::to_string(&entry).map_err(|e| format!("序列化日志失败: {}", e))?;
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)

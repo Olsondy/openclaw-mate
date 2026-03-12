@@ -321,14 +321,19 @@ export function useNodeConnection() {
 }
 
 async function getDeviceIdentity(): Promise<DeviceIdentity> {
-	if (import.meta.env.DEV) {
+	try {
+		return await invoke<DeviceIdentity>("get_device_identity");
+	} catch (error) {
+		if (!import.meta.env.DEV) {
+			throw error;
+		}
+		// DEV fallback: keep base64url format valid to avoid signature parser crash.
 		return {
 			device_id: "dev-device-id",
-			public_key_raw: "dev-public-key",
-			private_key_raw: "dev-private-key",
+			public_key_raw: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+			private_key_raw: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
 		};
 	}
-	return invoke<DeviceIdentity>("get_device_identity");
 }
 
 function getDeviceName(): string {

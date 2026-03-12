@@ -47,10 +47,7 @@ async fn open_cloud_console(app: tauri::AppHandle, url: String) -> Result<(), St
     WebviewWindowBuilder::new(
         &app,
         "cloud-console",
-        tauri::WebviewUrl::External(
-            url.parse()
-                .map_err(|e: url::ParseError| e.to_string())?,
-        ),
+        tauri::WebviewUrl::External(url.parse().map_err(|e: url::ParseError| e.to_string())?),
     )
     .title("OpenClaw Cloud Console")
     .inner_size(1200.0, 800.0)

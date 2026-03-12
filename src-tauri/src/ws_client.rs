@@ -144,16 +144,20 @@ pub struct TaskResult {
 
 // ─── WebSocket 连接状态（全局共享） ──────────────────────────────
 
-type WsSink = Arc<Mutex<Option<futures_util::stream::SplitSink<
-    tokio_tungstenite::WebSocketStream<
-        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>
+type WsSink = Arc<
+    Mutex<
+        Option<
+            futures_util::stream::SplitSink<
+                tokio_tungstenite::WebSocketStream<
+                    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+                >,
+                Message,
+            >,
+        >,
     >,
-    Message
->>>>;
+>;
 type WsRead = futures_util::stream::SplitStream<
-    tokio_tungstenite::WebSocketStream<
-        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>
-    >
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
 >;
 
 static WS_SINK: std::sync::OnceLock<WsSink> = std::sync::OnceLock::new();
@@ -228,8 +232,8 @@ pub async fn connect_gateway(
         },
     };
 
-    let frame_json = serde_json::to_string(&connect_frame)
-        .map_err(|e| format!("握手帧序列化失败: {}", e))?;
+    let frame_json =
+        serde_json::to_string(&connect_frame).map_err(|e| format!("握手帧序列化失败: {}", e))?;
     write
         .send(Message::Text(frame_json.into()))
         .await
@@ -293,7 +297,8 @@ async fn handle_gateway_message(app: &tauri::AppHandle, text: &str) {
 
                     // 提取 deviceToken（后续可持久化）
                     if let Some(payload) = &msg.payload {
-                        if let Ok(hello) = serde_json::from_value::<HelloOkPayload>(payload.clone()) {
+                        if let Ok(hello) = serde_json::from_value::<HelloOkPayload>(payload.clone())
+                        {
                             if let Some(auth) = hello.auth {
                                 if let Some(dt) = auth.device_token {
                                     app.emit("ws:device_token", &dt).ok();
@@ -310,14 +315,17 @@ async fn handle_gateway_message(app: &tauri::AppHandle, text: &str) {
                 }
             } else if msg.id.as_deref() == Some(CHANNEL_AUTH_STATUS_REQUEST_ID) {
                 if msg.ok == Some(true) {
-                    let parsed = msg
-                        .payload
-                        .as_ref()
-                        .and_then(|payload| serde_json::from_value::<ChannelAuthStatusPayload>(payload.clone()).ok());
+                    let parsed = msg.payload.as_ref().and_then(|payload| {
+                        serde_json::from_value::<ChannelAuthStatusPayload>(payload.clone()).ok()
+                    });
                     let required = match parsed {
                         Some(status) => status.required,
                         None => {
-                            app.emit("ws:error", "channel.auth.status payload invalid".to_string()).ok();
+                            app.emit(
+                                "ws:error",
+                                "channel.auth.status payload invalid".to_string(),
+                            )
+                            .ok();
                             return;
                         }
                     };
@@ -326,12 +334,17 @@ async fn handle_gateway_message(app: &tauri::AppHandle, text: &str) {
                     } else {
                         "channel.auth.resolved"
                     };
-                    app.emit("ws:gateway_event", serde_json::json!({
-                        "event": event_name,
-                        "payload": serde_json::Value::Null
-                    })).ok();
+                    app.emit(
+                        "ws:gateway_event",
+                        serde_json::json!({
+                            "event": event_name,
+                            "payload": serde_json::Value::Null
+                        }),
+                    )
+                    .ok();
                 } else {
-                    app.emit("ws:error", "channel.auth.status request failed".to_string()).ok();
+                    app.emit("ws:error", "channel.auth.status request failed".to_string())
+                        .ok();
                 }
             }
         }
@@ -342,16 +355,22 @@ async fn handle_gateway_message(app: &tauri::AppHandle, text: &str) {
                 match method.as_str() {
                     "node.invoke" => {
                         if let Some(params) = &msg.payload {
-                            let invoke_params: NodeInvokeParams = match serde_json::from_value(params.clone()) {
-                                Ok(p) => p,
-                                Err(_) => return,
-                            };
+                            let invoke_params: NodeInvokeParams =
+                                match serde_json::from_value(params.clone()) {
+                                    Ok(p) => p,
+                                    Err(_) => return,
+                                };
                             let req_id = msg.id.clone().unwrap_or_default();
 
                             // emit 到前端
                             let task = WsTask {
                                 task_id: req_id.clone(),
-                                r#type: invoke_params.command.split('.').next().unwrap_or("system").to_string(),
+                                r#type: invoke_params
+                                    .command
+                                    .split('.')
+                                    .next()
+                                    .unwrap_or("system")
+                                    .to_string(),
                                 payload: invoke_params.args.clone(),
                                 require_approval: false, // 审批逻辑由前端根据规则判断
                                 timeout_ms: SIDECAR_TIMEOUT_MS,
@@ -359,7 +378,9 @@ async fn handle_gateway_message(app: &tauri::AppHandle, text: &str) {
                             app.emit("ws:task", &task).ok();
 
                             // 执行命令
-                            let result = execute_command(app, &invoke_params.command, &invoke_params.args).await;
+                            let result =
+                                execute_command(app, &invoke_params.command, &invoke_params.args)
+                                    .await;
 
                             // 发送结果回 Gateway
                             send_response(&req_id, &result).await;
@@ -379,7 +400,9 @@ async fn handle_gateway_message(app: &tauri::AppHandle, text: &str) {
                             });
                             let mut sink = get_ws_sink().lock().await;
                             if let Some(ref mut w) = *sink {
-                                w.send(Message::Text(error_res.to_string().into())).await.ok();
+                                w.send(Message::Text(error_res.to_string().into()))
+                                    .await
+                                    .ok();
                             }
                         }
                     }
@@ -390,10 +413,14 @@ async fn handle_gateway_message(app: &tauri::AppHandle, text: &str) {
         // Gateway 推送事件
         "event" => {
             if let Some(event_name) = &msg.event {
-                app.emit("ws:gateway_event", serde_json::json!({
-                    "event": event_name,
-                    "payload": msg.payload
-                })).ok();
+                app.emit(
+                    "ws:gateway_event",
+                    serde_json::json!({
+                        "event": event_name,
+                        "payload": msg.payload
+                    }),
+                )
+                .ok();
             }
         }
 
@@ -415,7 +442,11 @@ async fn request_channel_auth_status() {
 }
 
 /// 执行命令（system.run / canvas.snapshot 本地执行；browser.* / vision.* 路由到 sidecar）
-async fn execute_command(app: &tauri::AppHandle, command: &str, args: &serde_json::Value) -> TaskResult {
+async fn execute_command(
+    app: &tauri::AppHandle,
+    command: &str,
+    args: &serde_json::Value,
+) -> TaskResult {
     use crate::sidecar::{SidecarManager, SidecarTask};
 
     let start = std::time::Instant::now();
@@ -427,11 +458,14 @@ async fn execute_command(app: &tauri::AppHandle, command: &str, args: &serde_jso
         return match mgr_state {
             Some(mgr) => {
                 let task = SidecarTask {
-                    task_id: format!("{}_{}", command,
+                    task_id: format!(
+                        "{}_{}",
+                        command,
                         std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .unwrap_or_default()
-                            .as_millis()),
+                            .as_millis()
+                    ),
                     task_type: task_type.to_string(),
                     payload: args.clone(),
                     timeout_ms: SIDECAR_TIMEOUT_MS,
@@ -440,7 +474,10 @@ async fn execute_command(app: &tauri::AppHandle, command: &str, args: &serde_jso
                     Ok(res) => TaskResult {
                         task_id: String::new(),
                         success: res.status == "success",
-                        stdout: res.result.map(|v: serde_json::Value| v.to_string()).unwrap_or_default(),
+                        stdout: res
+                            .result
+                            .map(|v: serde_json::Value| v.to_string())
+                            .unwrap_or_default(),
                         stderr: res.error.unwrap_or_default(),
                         exit_code: None,
                         duration_ms: start.elapsed().as_millis() as u64,
@@ -468,12 +505,9 @@ async fn execute_command(app: &tauri::AppHandle, command: &str, args: &serde_jso
 
     match command {
         "system.run" => {
-            let cmd_str = args.get("command")
-                .and_then(|c| c.as_str())
-                .unwrap_or("");
+            let cmd_str = args.get("command").and_then(|c| c.as_str()).unwrap_or("");
 
-            let cwd = args.get("cwd")
-                .and_then(|c| c.as_str());
+            let cwd = args.get("cwd").and_then(|c| c.as_str());
 
             if cmd_str.is_empty() {
                 return TaskResult {
@@ -562,7 +596,9 @@ async fn send_response(req_id: &str, result: &TaskResult) {
 
     let mut sink = get_ws_sink().lock().await;
     if let Some(ref mut w) = *sink {
-        w.send(Message::Text(response.to_string().into())).await.ok();
+        w.send(Message::Text(response.to_string().into()))
+            .await
+            .ok();
     }
 }
 
@@ -577,8 +613,7 @@ pub async fn disconnect_gateway() -> Result<(), String> {
 }
 
 fn build_gateway_ws_url(gateway_url: &str, token: &str) -> Result<String, String> {
-    let mut url = Url::parse(gateway_url)
-        .map_err(|e| format!("无效的 gateway 地址: {}", e))?;
+    let mut url = Url::parse(gateway_url).map_err(|e| format!("无效的 gateway 地址: {}", e))?;
 
     match url.scheme() {
         "ws" | "wss" => {}
@@ -832,8 +867,8 @@ fn build_device_info(
         std::env::consts::OS,
         NODE_DEVICE_FAMILY
     );
-    let signature = sign_payload(private_key, &payload)
-        .map_err(|e| format!("设备签名失败: {}", e))?;
+    let signature =
+        sign_payload(private_key, &payload).map_err(|e| format!("设备签名失败: {}", e))?;
 
     Ok(DeviceInfo {
         id: agent_id.to_string(),
