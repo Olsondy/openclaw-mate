@@ -95,6 +95,56 @@ describe("SettingsPage breathing indicators", () => {
 		expect(localConnectCalls.length).toBe(1);
 	});
 
+	it("restarts local gateway and retries when local token mismatches", async () => {
+		useConnectionStore.setState({
+			status: "idle",
+			errorMessage:
+				'握手失败: unauthorized: gateway token mismatch (code=INVALID_REQUEST, details={"code":"AUTH_TOKEN_MISMATCH"})',
+			onlineAt: null,
+		});
+		useConfigStore.setState({
+			connectionMode: null,
+			directMode: null,
+		});
+		connectDirectGatewayMock
+			.mockResolvedValueOnce(false)
+			.mockResolvedValueOnce(true);
+		invokeMock.mockImplementation(async (cmd: string) => {
+			if (cmd === "local_connect") {
+				return {
+					gateway_url: "ws://127.0.0.1:18789",
+					gateway_web_ui: "http://127.0.0.1:18789/#token=test-token",
+					token: "test-token",
+				};
+			}
+			if (cmd === "local_gateway_daemon") {
+				return "Gateway restarted";
+			}
+			return undefined;
+		});
+
+		render(<SettingsPage />);
+		const directLabel = screen.getByText("直连");
+		fireEvent.click(directLabel.closest("button") as HTMLButtonElement);
+		const localDesc = await waitFor(() =>
+			screen.getByText("自动探测本机已安装的网关"),
+		);
+		fireEvent.click(localDesc.closest("button") as HTMLButtonElement);
+
+		await waitFor(() => {
+			expect(connectDirectGatewayMock).toHaveBeenCalledTimes(2);
+		});
+		const restartCalls = invokeMock.mock.calls.filter(
+			(call) =>
+				call[0] === "local_gateway_daemon" && call[1]?.action === "restart",
+		);
+		expect(restartCalls.length).toBe(1);
+		const localConnectCalls = invokeMock.mock.calls.filter(
+			(call) => call[0] === "local_connect",
+		);
+		expect(localConnectCalls.length).toBe(2);
+	});
+
 	it("shows switch-mode dialog when switching from tenant to direct while online", async () => {
 		useConnectionStore.setState({
 			status: "online",

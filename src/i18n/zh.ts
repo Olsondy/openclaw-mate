@@ -103,6 +103,11 @@ export type Dict = {
 		initializing: string;
 		continue: string;
 		skip: string;
+		autoReconnectTitle: string;
+		autoReconnectPreparing: string;
+		autoReconnectTenant: string;
+		autoReconnectDirectLocal: string;
+		autoReconnectDirectCloud: string;
 	};
 	localConnect: {
 		idle: string;
@@ -369,6 +374,11 @@ export const zh: Dict = {
 		initializing: "正在初始化...",
 		continue: "继续",
 		skip: "稍后设置",
+		autoReconnectTitle: "正在自动重连",
+		autoReconnectPreparing: "正在准备连接信息...",
+		autoReconnectTenant: "正在恢复租户连接...",
+		autoReconnectDirectLocal: "正在恢复本地直连...",
+		autoReconnectDirectCloud: "正在恢复云端地址直连...",
 	},
 
 	// Local Connect

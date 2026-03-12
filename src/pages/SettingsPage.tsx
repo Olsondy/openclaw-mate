@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { ConnectionModeCard } from "../components/features/connection/ConnectionModeCard";
 import { ApiWizard } from "../components/features/wizard/ApiWizard";
 import { TopBar } from "../components/layout/TopBar";
 import { Button, Card, Switch } from "../components/ui";
@@ -78,6 +79,15 @@ function normalizeGatewayEndpoint(raw: string): {
 		gatewayUrl: `wss://${value}`,
 		gatewayWebUI: `https://${value}`,
 	};
+}
+
+function isGatewayTokenMismatchError(message: string): boolean {
+	const normalized = message.toLowerCase();
+	return (
+		normalized.includes("auth_token_mismatch") ||
+		normalized.includes("token_mismatch") ||
+		normalized.includes("gateway token mismatch")
+	);
 }
 
 function SectionHeader({ title }: { title: string }) {
@@ -614,6 +624,50 @@ export function SettingsPage() {
 			closeDirectModalSuccess(t.localConnect.connected);
 		} catch (e) {
 			const msg = String(e);
+			if (isGatewayTokenMismatchError(msg)) {
+				try {
+					setDirectStatus({
+						level: "info",
+						message: t.settings.actionLocalRestarting,
+					});
+					addDirectActionLog(
+						"warning",
+						"Mate: Local token mismatch detected",
+						msg,
+						["mate", "connection", "local", "token", "mismatch"],
+					);
+					const daemonMessage = await invoke<string>("local_gateway_daemon", {
+						action: "restart",
+					});
+					addDirectActionLog(
+						"info",
+						"Mate: Local gateway restarted after token mismatch",
+						daemonMessage || t.settings.actionLocalRestarted,
+						["mate", "connection", "local", "service", "restart", "recovery"],
+					);
+					await connectDiscoveredLocalGateway();
+					setDirectMode("local");
+					await invoke("save_app_config", {
+						config: { connectionMode: "direct" },
+					});
+					setConnectionMode("direct");
+					closeDirectModalSuccess(t.settings.actionLocalRestarted);
+					return;
+				} catch (recoverError) {
+					const recoverMsg = String(recoverError);
+					setDirectStatus({
+						level: "error",
+						message: recoverMsg,
+					});
+					addDirectActionLog(
+						"error",
+						"Mate: Local token mismatch recovery failed",
+						recoverMsg || "Unknown error",
+						["mate", "connection", "local", "token", "recovery", "failed"],
+					);
+					return;
+				}
+			}
 			setDirectStatus({
 				level: "error",
 				message: msg,
@@ -766,97 +820,57 @@ export function SettingsPage() {
 
 					{/* 两个连接卡片 */}
 					<div className="grid grid-cols-2 gap-3">
-						{/* 本地 卡片 */}
-						<button
-							type="button"
+						<ConnectionModeCard
+							icon={Cable}
+							title={t.settings.local}
+							description={t.welcome.localDesc}
+							hint={t.welcome.localHint}
+							active={connectionMode === "direct" && isOnline}
+							showPulse={connectionMode === "direct" && isOnline}
 							onClick={handleDirectCardClick}
-							className={`group relative flex flex-col items-center justify-center text-left rounded-xl border p-3 transition-all duration-300 min-h-[80px] ${
-								connectionMode === "direct" && isOnline
-									? activeModeCardClass
-									: "border-card-border bg-card-bg hover:border-primary/30 hover:-translate-y-1 hover:shadow-md"
-							}`}
-						>
-							{connectionMode === "direct" && isOnline && (
-								<span className="absolute top-3 right-3 flex h-2.5 w-2.5">
-									<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-									<span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-								</span>
-							)}
-							<div className="flex items-center gap-1.5">
-								{" "}
-								<Cable
-									size={15}
-									className={
-										connectionMode === "direct" && isOnline
-											? "text-primary"
-											: "text-surface-on-variant"
-									}
-								/>
-								<span className="text-sm font-medium text-surface-on">
-									{t.settings.local}
-								</span>
-							</div>
-							{connectionMode === "direct" && isOnline && directMode && (
-								<p className="mt-1 text-[11px] text-primary font-medium">
-									{directMode === "local"
-										? t.settings.directLocalGateway
-										: t.settings.directCloudGateway}
-								</p>
-							)}
-						</button>
-
-						{/* License 卡片 */}
-						<button
-							type="button"
+							meta={
+								connectionMode === "direct" && isOnline && directMode ? (
+									<p className="text-[11px] text-primary font-medium">
+										{directMode === "local"
+											? t.settings.directLocalGateway
+											: t.settings.directCloudGateway}
+									</p>
+								) : null
+							}
+						/>
+						<ConnectionModeCard
+							icon={Server}
+							title={t.settings.cloud}
+							description={t.welcome.licenseDesc}
+							hint={t.welcome.licenseHint}
+							active={connectionMode === "tenant" && isOnline}
+							showPulse={connectionMode === "tenant" && isOnline}
 							onClick={handleLicenseCardClick}
-							className={`group relative flex flex-col items-center justify-center text-left rounded-xl border p-3 transition-all duration-300 min-h-[80px] ${
-								connectionMode === "tenant" && isOnline
-									? activeModeCardClass
-									: "border-card-border bg-card-bg hover:border-primary/30 hover:-translate-y-1 hover:shadow-md"
-							}`}
-						>
-							{connectionMode === "tenant" && isOnline && (
-								<span className="absolute top-3 right-3 flex h-2.5 w-2.5">
-									<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-									<span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-								</span>
-							)}
-							<div className="flex items-center gap-1.5">
-								<Server
-									size={15}
-									className={
-										connectionMode === "tenant" && isOnline
-											? "text-primary"
-											: "text-surface-on-variant"
-									}
-								/>
-								<span className="text-sm font-medium text-surface-on">
-									{t.settings.cloud}
-								</span>
-							</div>
-							{connectionMode === "tenant" && isOnline && hasKey && (
-								<div className="space-y-1 mt-1.5 w-full">
-									<div className="flex justify-between text-[11px]">
-										<span className="text-surface-on-variant">
-											{t.settings.keyLabel}
-										</span>
-										<span className="font-mono text-surface-on">
-											{maskLicenseKey(licenseKey)}
-										</span>
+							meta={
+								connectionMode === "tenant" && isOnline && hasKey ? (
+									<div className="space-y-1 mt-1.5">
+										<div className="flex justify-between text-[11px] gap-2">
+											<span className="text-surface-on-variant">
+												{t.settings.keyLabel}
+											</span>
+											<span className="font-mono text-surface-on">
+												{maskLicenseKey(licenseKey)}
+											</span>
+										</div>
+										<div className="flex justify-between text-[11px] gap-2">
+											<span className="text-surface-on-variant">
+												{t.settings.expiryLabel}
+											</span>
+											<span className="text-surface-on">
+												{expiryDate === "Permanent" || !expiryDate
+													? t.settings.expiryPermanent
+													: expiryDate}
+											</span>
+										</div>
 									</div>
-									<div className="flex justify-between text-[11px]">
-										<span className="text-surface-on-variant">
-											{t.settings.expiryLabel}
-										</span>
-										<span className="text-surface-on">
-											{expiryDate === "Permanent" || !expiryDate
-												? t.settings.expiryPermanent
-												: expiryDate}
-										</span>
-									</div>
-								</div>
-							)}
-						</button>
+								) : null
+							}
+						/>
 					</div>
 				</section>
 

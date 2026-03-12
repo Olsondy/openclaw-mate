@@ -123,6 +123,11 @@ export const en: Dict = {
 		initializing: "Initializing...",
 		continue: "Continue",
 		skip: "Set up later",
+		autoReconnectTitle: "Restoring connection",
+		autoReconnectPreparing: "Preparing connection profile...",
+		autoReconnectTenant: "Restoring tenant connection...",
+		autoReconnectDirectLocal: "Restoring local direct connection...",
+		autoReconnectDirectCloud: "Restoring direct cloud address connection...",
 	},
 
 	// Local Connect

@@ -16,6 +16,9 @@ interface PersistedSettings {
 	expiryDate: string;
 	directMode: DirectMode | null;
 	directCloudAddress: string;
+	hasConnectedOnce: boolean;
+	skipModelGuide: boolean;
+	skipFeishuGuide: boolean;
 }
 
 interface ConfigState {
@@ -33,6 +36,12 @@ interface ConfigState {
 	directMode: DirectMode | null;
 	/** 云端直连地址（用于下次回显） */
 	directCloudAddress: string;
+	/** 是否曾经成功连接过（用于启动引导判定） */
+	hasConnectedOnce: boolean;
+	/** 模型引导是否已跳过/完成 */
+	skipModelGuide: boolean;
+	/** 飞书引导是否已跳过/完成 */
+	skipFeishuGuide: boolean;
 
 	setLicenseKey: (key: string) => void;
 	setRuntimeConfig: (config: NodeRuntimeConfig) => void;
@@ -47,6 +56,9 @@ interface ConfigState {
 	setConnectionMode: (mode: ConnectionMode | null) => void;
 	setDirectMode: (mode: DirectMode | null) => void;
 	setDirectCloudAddress: (address: string) => void;
+	markConnectedOnce: () => void;
+	setSkipModelGuide: (value: boolean) => void;
+	setSkipFeishuGuide: (value: boolean) => void;
 	/** 切换模式时清除会话数据，但不清除 connectionMode 本身 */
 	resetForModeSwitch: () => void;
 }
@@ -76,6 +88,9 @@ export const useConfigStore = create<ConfigState>()(
 			connectionMode: null,
 			directMode: null,
 			directCloudAddress: "",
+			hasConnectedOnce: false,
+			skipModelGuide: false,
+			skipFeishuGuide: false,
 
 			setLicenseKey: (licenseKey) => set({ licenseKey }),
 
@@ -106,6 +121,9 @@ export const useConfigStore = create<ConfigState>()(
 			setDirectMode: (directMode) => set({ directMode }),
 			setDirectCloudAddress: (directCloudAddress) =>
 				set({ directCloudAddress }),
+			markConnectedOnce: () => set({ hasConnectedOnce: true }),
+			setSkipModelGuide: (skipModelGuide) => set({ skipModelGuide }),
+			setSkipFeishuGuide: (skipFeishuGuide) => set({ skipFeishuGuide }),
 
 			resetForModeSwitch: () =>
 				set({
@@ -121,6 +139,9 @@ export const useConfigStore = create<ConfigState>()(
 				expiryDate: state.expiryDate,
 				directMode: state.directMode,
 				directCloudAddress: state.directCloudAddress,
+				hasConnectedOnce: state.hasConnectedOnce,
+				skipModelGuide: state.skipModelGuide,
+				skipFeishuGuide: state.skipFeishuGuide,
 			}),
 		},
 	),

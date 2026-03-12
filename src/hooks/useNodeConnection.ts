@@ -34,6 +34,7 @@ export function useNodeConnection() {
 		setRuntimeConfig,
 		setUserProfile,
 		setSessionMeta,
+		markConnectedOnce,
 	} = useConfigStore();
 
 	useTauriEvent(
@@ -158,6 +159,8 @@ export function useNodeConnection() {
 					publicKeyRaw: identity.public_key_raw,
 					privateKeyRaw: identity.private_key_raw ?? null,
 				});
+				setStatus("online");
+				markConnectedOnce();
 				addConnectionLog(
 					"success",
 					"Mate: Tenant gateway connected",
@@ -187,6 +190,7 @@ export function useNodeConnection() {
 			setSessionMeta,
 			setStatus,
 			setUserProfile,
+			markConnectedOnce,
 			t.settings.authStatusException,
 			t.settings.licenseKeyInvalid,
 			t.settings.licenseKeyRequired,
@@ -245,6 +249,8 @@ export function useNodeConnection() {
 					publicKeyRaw: identity.public_key_raw,
 					privateKeyRaw: identity.private_key_raw ?? null,
 				});
+				setStatus("online");
+				markConnectedOnce();
 				addConnectionLog(
 					"success",
 					"Mate: Direct gateway connected",
@@ -275,6 +281,7 @@ export function useNodeConnection() {
 			t.settings.cloudGatewayAddrRequired,
 			t.settings.directModeLabel,
 			t.settings.modeLocal,
+			markConnectedOnce,
 		],
 	);
 

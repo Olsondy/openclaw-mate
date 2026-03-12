@@ -1,19 +1,23 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useCallback, useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { ChannelAuthDialog } from "./components/features/channel-auth/ChannelAuthDialog";
 import { WelcomeModal } from "./components/features/welcome/WelcomeModal";
+import { ApiWizard } from "./components/features/wizard/ApiWizard";
+import { FeishuWizard } from "./components/features/wizard/FeishuWizard";
 import { AppLayout } from "./components/layout/AppLayout";
 import { Toaster } from "./components/ui/sonner";
+import { useNodeConnection } from "./hooks/useNodeConnection";
 import { useTauriEvent } from "./hooks/useTauri";
-import { useI18nStore } from "./i18n";
+import { useI18nStore, useT } from "./i18n";
 import { ActivityPage } from "./pages/ActivityPage";
 import { ChannelPage } from "./pages/ChannelPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { useConfigStore, useTasksStore } from "./store";
+import { useConfigStore, useConnectionStore, useTasksStore } from "./store";
 import type { ConnectionMode } from "./store/config.store";
 
 type GatewayEventEnvelope = {
@@ -21,6 +25,16 @@ type GatewayEventEnvelope = {
 	payload: unknown;
 };
 type StoredConnectionMode = ConnectionMode | "license" | "local";
+
+interface LicenseProfileSnapshot {
+	licenseKey?: string;
+}
+
+interface LocalProfileSnapshot {
+	gatewayUrl?: string;
+	gatewayWebUI?: string;
+	gatewayToken?: string | null;
+}
 
 function normalizeConnectionMode(
 	mode: StoredConnectionMode | null | undefined,
@@ -31,23 +45,224 @@ function normalizeConnectionMode(
 	return mode;
 }
 
+function normalizeGatewayEndpoint(value: string): {
+	gatewayUrl: string;
+	gatewayWebUI: string;
+} {
+	const raw = value.trim();
+	if (!raw) {
+		return { gatewayUrl: "", gatewayWebUI: "" };
+	}
+	if (/^wss?:\/\//i.test(raw)) {
+		return {
+			gatewayUrl: raw,
+			gatewayWebUI: raw.replace(/^ws/i, "http"),
+		};
+	}
+	if (/^https?:\/\//i.test(raw)) {
+		return {
+			gatewayUrl: raw.replace(/^http/i, "ws"),
+			gatewayWebUI: raw,
+		};
+	}
+	return {
+		gatewayUrl: `wss://${raw}`,
+		gatewayWebUI: `https://${raw}`,
+	};
+}
+
+function isLoopbackEndpoint(endpoint: string): boolean {
+	const raw = endpoint.trim();
+	if (!raw) return false;
+	const withScheme = /^wss?:\/\//i.test(raw)
+		? raw
+		: /^https?:\/\//i.test(raw)
+			? raw.replace(/^http/i, "ws")
+			: `ws://${raw}`;
+	try {
+		const host = new URL(withScheme).hostname.toLowerCase();
+		return host === "127.0.0.1" || host === "localhost";
+	} catch {
+		return false;
+	}
+}
+
+function isGatewayTokenMismatchError(message: string): boolean {
+	const normalized = message.toLowerCase();
+	return (
+		normalized.includes("auth_token_mismatch") ||
+		normalized.includes("token_mismatch") ||
+		normalized.includes("gateway token mismatch")
+	);
+}
+
 function AppInner() {
-	const { setConnectionMode } = useConfigStore();
+	const t = useT();
+	const theme = useI18nStore((s) => s.theme);
+	const status = useConnectionStore((s) => s.status);
 	const hydrateLogsFromFile = useTasksStore((s) => s.hydrateLogsFromFile);
+	const {
+		setConnectionMode,
+		setLicenseKey,
+		setDirectMode,
+		setDirectCloudAddress,
+		hasConnectedOnce,
+		skipModelGuide,
+		skipFeishuGuide,
+		setSkipModelGuide,
+		setSkipFeishuGuide,
+	} = useConfigStore();
+	const { verifyAndConnect, connectDirectGateway } = useNodeConnection();
+
 	const [showChannelAuthDialog, setShowChannelAuthDialog] = useState(false);
 	const [showWelcome, setShowWelcome] = useState(false);
-	const theme = useI18nStore((s) => s.theme);
+	const [autoReconnectOpen, setAutoReconnectOpen] = useState(false);
+	const [autoReconnectText, setAutoReconnectText] = useState("");
+	const [showModelWizard, setShowModelWizard] = useState(false);
+	const [showFeishuWizard, setShowFeishuWizard] = useState(false);
 
-	// 启动时从文件加载 connectionMode
+	const startupHandledRef = useRef(false);
+	const guideTriggeredRef = useRef(false);
+
+	const tryAutoReconnect = useCallback(
+		async (mode: ConnectionMode): Promise<boolean> => {
+			if (mode === "tenant") {
+				setAutoReconnectText(t.welcome.autoReconnectTenant);
+				const profile = await invoke<LicenseProfileSnapshot | null>(
+					"get_license_profile",
+				).catch(() => null);
+				const key = profile?.licenseKey?.trim();
+				if (!key) return false;
+				setLicenseKey(key);
+				return verifyAndConnect(key);
+			}
+
+			setAutoReconnectText(t.welcome.autoReconnectDirectLocal);
+			const profile = await invoke<LocalProfileSnapshot | null>(
+				"get_local_profile",
+			).catch(() => null);
+			const endpoint = (
+				profile?.gatewayUrl ||
+				profile?.gatewayWebUI ||
+				""
+			).trim();
+			if (!endpoint) return false;
+
+			if (isLoopbackEndpoint(endpoint)) {
+				const discovered = await invoke<{
+					gateway_url: string;
+					gateway_web_ui: string;
+					token: string;
+				}>("local_connect").catch(() => null);
+				if (!discovered) return false;
+				let ok = await connectDirectGateway({
+					gatewayUrl: discovered.gateway_url,
+					gatewayWebUI: discovered.gateway_web_ui,
+					gatewayToken: discovered.token,
+					profileLabel: t.settings.directLocalGateway,
+				});
+				if (!ok) {
+					const currentError = useConnectionStore.getState().errorMessage || "";
+					if (isGatewayTokenMismatchError(currentError)) {
+						await invoke("local_gateway_daemon", {
+							action: "restart",
+						}).catch(() => null);
+						const retryDiscovered = await invoke<{
+							gateway_url: string;
+							gateway_web_ui: string;
+							token: string;
+						}>("local_connect").catch(() => null);
+						if (retryDiscovered) {
+							ok = await connectDirectGateway({
+								gatewayUrl: retryDiscovered.gateway_url,
+								gatewayWebUI: retryDiscovered.gateway_web_ui,
+								gatewayToken: retryDiscovered.token,
+								profileLabel: t.settings.directLocalGateway,
+							});
+						}
+					}
+				}
+				if (ok) {
+					setDirectMode("local");
+					setDirectCloudAddress("");
+				}
+				return ok;
+			}
+
+			setAutoReconnectText(t.welcome.autoReconnectDirectCloud);
+			const normalized = normalizeGatewayEndpoint(endpoint);
+			const ok = await connectDirectGateway({
+				gatewayUrl: normalized.gatewayUrl,
+				gatewayWebUI: normalized.gatewayWebUI,
+				gatewayToken: profile?.gatewayToken?.trim() ?? "",
+				profileLabel: t.settings.directCloudGateway,
+			});
+			if (ok) {
+				setDirectMode("cloud");
+				setDirectCloudAddress(endpoint);
+			}
+			return ok;
+		},
+		[
+			connectDirectGateway,
+			setDirectCloudAddress,
+			setDirectMode,
+			setLicenseKey,
+			t.settings.directCloudGateway,
+			t.settings.directLocalGateway,
+			t.welcome.autoReconnectDirectCloud,
+			t.welcome.autoReconnectDirectLocal,
+			t.welcome.autoReconnectTenant,
+			verifyAndConnect,
+		],
+	);
+
+	// 启动时加载 connectionMode，并按历史连接状态决定是否自动重连
 	useEffect(() => {
-		invoke<{ connectionMode: StoredConnectionMode | null }>("get_app_config")
-			.then(({ connectionMode: mode }) => {
-				const normalized = normalizeConnectionMode(mode);
+		if (startupHandledRef.current) return;
+		startupHandledRef.current = true;
+
+		let cancelled = false;
+		const bootstrap = async () => {
+			try {
+				const { connectionMode: rawMode } = await invoke<{
+					connectionMode: StoredConnectionMode | null;
+				}>("get_app_config");
+				const normalized = normalizeConnectionMode(rawMode);
 				setConnectionMode(normalized);
-				if (!normalized) setShowWelcome(true);
-			})
-			.catch(() => setShowWelcome(true));
-	}, []);
+
+				if (!hasConnectedOnce) {
+					if (!cancelled) setShowWelcome(true);
+					return;
+				}
+				if (!normalized) return;
+
+				if (!cancelled) {
+					setAutoReconnectOpen(true);
+					setAutoReconnectText(t.welcome.autoReconnectPreparing);
+				}
+				await tryAutoReconnect(normalized);
+			} catch {
+				if (!hasConnectedOnce && !cancelled) {
+					setShowWelcome(true);
+				}
+			} finally {
+				if (!cancelled) {
+					setAutoReconnectOpen(false);
+				}
+			}
+		};
+
+		void bootstrap();
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		hasConnectedOnce,
+		setConnectionMode,
+		t.welcome.autoReconnectPreparing,
+		tryAutoReconnect,
+	]);
 
 	// 启动时从当日日志文件回灌活动日志
 	useEffect(() => {
@@ -62,7 +277,6 @@ function AppInner() {
 			root.classList.add(isDark ? "dark" : "light");
 			root.classList.remove(isDark ? "light" : "dark");
 			root.style.colorScheme = isDark ? "dark" : "light";
-			// 同步 Tauri 原生窗口主题（影响 Mica 材质明暗）
 			getCurrentWindow()
 				.setTheme(isDark ? "dark" : "light")
 				.catch((e) => console.warn("[theme] setTheme failed:", e));
@@ -75,10 +289,23 @@ function AppInner() {
 			const handler = (e: MediaQueryListEvent) => setHtmlClass(e.matches);
 			mediaQuery.addEventListener("change", handler);
 			return () => mediaQuery.removeEventListener("change", handler);
-		} else {
-			setHtmlClass(theme === "dark");
 		}
+
+		setHtmlClass(theme === "dark");
 	}, [theme]);
+
+	// 首次上线后的模型/飞书引导：点击“稍后设置”后永久不再自动弹出
+	useEffect(() => {
+		if (status !== "online" || guideTriggeredRef.current) return;
+		guideTriggeredRef.current = true;
+		if (!skipModelGuide) {
+			setShowModelWizard(true);
+			return;
+		}
+		if (!skipFeishuGuide) {
+			setShowFeishuWizard(true);
+		}
+	}, [skipFeishuGuide, skipModelGuide, status]);
 
 	useTauriEvent<GatewayEventEnvelope>(
 		"ws:gateway_event",
@@ -94,6 +321,21 @@ function AppInner() {
 	return (
 		<>
 			{showWelcome && <WelcomeModal onDone={() => setShowWelcome(false)} />}
+			{autoReconnectOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+					<div className="rounded-xl border border-card-border bg-card-bg px-5 py-4 shadow-2xl ring-1 ring-white/10 flex items-center gap-3 min-w-[320px]">
+						<Loader2 size={16} className="animate-spin text-primary" />
+						<div>
+							<p className="text-sm font-medium text-surface-on">
+								{t.welcome.autoReconnectTitle}
+							</p>
+							<p className="text-xs text-surface-on-variant mt-0.5">
+								{autoReconnectText}
+							</p>
+						</div>
+					</div>
+				</div>
+			)}
 			<Routes>
 				<Route path="/" element={<AppLayout />}>
 					<Route index element={<DashboardPage />} />
@@ -102,6 +344,36 @@ function AppInner() {
 					<Route path="settings" element={<SettingsPage />} />
 				</Route>
 			</Routes>
+			{showModelWizard && (
+				<ApiWizard
+					onSuccess={() => {
+						setSkipModelGuide(true);
+						setShowModelWizard(false);
+						if (!skipFeishuGuide) {
+							setShowFeishuWizard(true);
+						}
+					}}
+					onClose={() => {
+						setSkipModelGuide(true);
+						setShowModelWizard(false);
+						if (!skipFeishuGuide) {
+							setShowFeishuWizard(true);
+						}
+					}}
+				/>
+			)}
+			{showFeishuWizard && (
+				<FeishuWizard
+					onSuccess={() => {
+						setSkipFeishuGuide(true);
+						setShowFeishuWizard(false);
+					}}
+					onClose={() => {
+						setSkipFeishuGuide(true);
+						setShowFeishuWizard(false);
+					}}
+				/>
+			)}
 			{showChannelAuthDialog && (
 				<ChannelAuthDialog onClose={() => setShowChannelAuthDialog(false)} />
 			)}

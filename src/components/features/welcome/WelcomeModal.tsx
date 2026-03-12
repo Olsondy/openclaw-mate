@@ -1,52 +1,57 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ArrowRight, KeyRound, Monitor } from "lucide-react";
-import { useState } from "react";
+import {
+	ArrowRight,
+	Cable,
+	HardDrive,
+	KeyRound,
+	Server,
+	X,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useT } from "../../../i18n";
 import { useConfigStore } from "../../../store";
-import type { ConnectionMode } from "../../../store/config.store";
-import { Card } from "../../ui";
+import type { ConnectionMode, DirectMode } from "../../../store/config.store";
+import { Button, Card } from "../../ui";
+import { ConnectionModeCard } from "../connection/ConnectionModeCard";
 
 interface Props {
 	onDone: () => void;
 }
 
 export function WelcomeModal({ onDone }: Props) {
-	const { setConnectionMode } = useConfigStore();
+	const { setConnectionMode, setDirectMode, setDirectCloudAddress } =
+		useConfigStore();
 	const navigate = useNavigate();
 	const t = useT();
 	const [selected, setSelected] = useState<ConnectionMode | null>(null);
 	const [loading, setLoading] = useState(false);
+	const [directPickerOpen, setDirectPickerOpen] = useState(false);
+	const [directTarget, setDirectTarget] = useState<DirectMode | null>(null);
+	const [directAddress, setDirectAddress] = useState("");
 
-	const OPTIONS: {
-		mode: ConnectionMode;
-		icon: React.ElementType;
-		title: string;
-		desc: string;
-		hint: string;
-	}[] = [
-		{
-			mode: "direct",
-			icon: Monitor,
-			title: t.welcome.localTitle,
-			desc: t.welcome.localDesc,
-			hint: t.welcome.localHint,
-		},
-		{
-			mode: "tenant",
-			icon: KeyRound,
-			title: t.welcome.licenseTitle,
-			desc: t.welcome.licenseDesc,
-			hint: t.welcome.licenseHint,
-		},
-	];
+	const canContinue = useMemo(() => {
+		if (selected === "tenant") return true;
+		if (selected !== "direct") return false;
+		if (!directTarget) return false;
+		if (directTarget === "local") return true;
+		return Boolean(directAddress.trim());
+	}, [directAddress, directTarget, selected]);
 
 	const handleConfirm = async () => {
-		if (!selected) return;
+		if (!selected || !canContinue) return;
 		setLoading(true);
 		try {
 			await invoke("save_app_config", { config: { connectionMode: selected } });
 			setConnectionMode(selected);
+			if (selected === "direct") {
+				setDirectMode(directTarget);
+				if (directTarget === "cloud") {
+					setDirectCloudAddress(directAddress.trim());
+				} else {
+					setDirectCloudAddress("");
+				}
+			}
 			onDone();
 			navigate("/settings");
 		} finally {
@@ -54,10 +59,14 @@ export function WelcomeModal({ onDone }: Props) {
 		}
 	};
 
+	const openDirectPicker = () => {
+		setSelected("direct");
+		setDirectPickerOpen(true);
+	};
+
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
 			<Card className="w-full max-w-lg p-8">
-				{/* 标题 */}
 				<div className="text-center mb-8">
 					<h1 className="text-2xl font-semibold text-surface-on mb-2">
 						{t.welcome.title}
@@ -67,56 +76,38 @@ export function WelcomeModal({ onDone }: Props) {
 					</p>
 				</div>
 
-				{/* 选项卡片 */}
 				<div className="grid grid-cols-2 gap-4 mb-8">
-					{OPTIONS.map(({ mode, icon: Icon, title, desc, hint }) => {
-						const isActive = selected === mode;
-						return (
-							<button
-								key={mode}
-								type="button"
-								onClick={() => setSelected(mode)}
-								className={`
-                  text-left p-5 rounded-xl border transition-all duration-300
-                  ${
-										isActive
-											? "border-primary/60 bg-primary/5 ring-1 ring-primary/30 shadow-sm"
-											: "border-card-border bg-card-bg hover:border-primary/30 hover:-translate-y-1 hover:shadow-md"
-									}
-                `}
-							>
-								<div
-									className={`mb-3 w-9 h-9 rounded-lg flex items-center justify-center
-                  ${isActive ? "bg-primary/15" : "bg-surface-variant"}`}
-								>
-									<Icon
-										size={18}
-										className={
-											isActive ? "text-primary" : "text-surface-on-variant"
-										}
-									/>
-								</div>
-								<div className="text-sm font-medium text-surface-on mb-1.5">
-									{title}
-								</div>
-								<div className="text-xs text-surface-on-variant leading-relaxed mb-3">
-									{desc}
-								</div>
-								<div
-									className={`text-[11px] ${isActive ? "text-primary" : "text-surface-on-variant/60"}`}
-								>
-									{hint}
-								</div>
-							</button>
-						);
-					})}
+					<ConnectionModeCard
+						icon={Cable}
+						title={t.welcome.localTitle}
+						description={t.welcome.localDesc}
+						hint={t.welcome.localHint}
+						active={selected === "direct"}
+						onClick={openDirectPicker}
+						meta={
+							selected === "direct" && directTarget ? (
+								<p className="text-[11px] text-primary">
+									{directTarget === "local"
+										? t.settings.directLocalGateway
+										: t.settings.directCloudGateway}
+								</p>
+							) : null
+						}
+					/>
+					<ConnectionModeCard
+						icon={KeyRound}
+						title={t.welcome.licenseTitle}
+						description={t.welcome.licenseDesc}
+						hint={t.welcome.licenseHint}
+						active={selected === "tenant"}
+						onClick={() => setSelected("tenant")}
+					/>
 				</div>
 
-				{/* 操作按钮 */}
 				<div className="flex flex-col gap-3">
 					<button
 						type="button"
-						disabled={!selected || loading}
+						disabled={!canContinue || loading}
 						onClick={handleConfirm}
 						className="w-full flex items-center justify-center gap-2 py-3 rounded-xl
               bg-primary text-primary-on text-sm font-semibold
@@ -136,6 +127,95 @@ export function WelcomeModal({ onDone }: Props) {
 					</button>
 				</div>
 			</Card>
+
+			{directPickerOpen && (
+				<div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
+					<div className="w-full max-w-md rounded-xl border border-card-border bg-card-bg p-5 shadow-2xl ring-1 ring-white/10 space-y-4">
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<Cable size={15} className="text-primary" />
+								<h3 className="text-sm font-semibold text-surface-on">
+									{t.settings.directModalTitle}
+								</h3>
+							</div>
+							<button
+								type="button"
+								onClick={() => setDirectPickerOpen(false)}
+								className="text-surface-on-variant hover:text-surface-on transition-colors"
+							>
+								<X size={15} />
+							</button>
+						</div>
+						<p className="text-xs text-surface-on-variant">
+							{t.settings.directSelectHint}
+						</p>
+						<div className="grid grid-cols-2 gap-3">
+							<button
+								type="button"
+								onClick={() => {
+									setDirectTarget("local");
+									setDirectPickerOpen(false);
+								}}
+								className={`rounded-xl border p-4 text-left transition-all ${
+									directTarget === "local"
+										? "border-primary/60 bg-primary/8 ring-1 ring-primary/30"
+										: "border-card-border bg-surface hover:border-primary/30"
+								}`}
+							>
+								<div className="flex items-center gap-2 mb-1.5">
+									<HardDrive size={14} className="text-primary" />
+									<span className="text-sm font-medium text-surface-on">
+										{t.settings.directLocalGateway}
+									</span>
+								</div>
+								<p className="text-xs text-surface-on-variant">
+									{t.settings.directLocalDesc}
+								</p>
+							</button>
+							<button
+								type="button"
+								onClick={() => setDirectTarget("cloud")}
+								className={`rounded-xl border p-4 text-left transition-all ${
+									directTarget === "cloud"
+										? "border-primary/60 bg-primary/8 ring-1 ring-primary/30"
+										: "border-card-border bg-surface hover:border-primary/30"
+								}`}
+							>
+								<div className="flex items-center gap-2 mb-1.5">
+									<Server size={14} className="text-primary" />
+									<span className="text-sm font-medium text-surface-on">
+										{t.settings.directCloudGateway}
+									</span>
+								</div>
+								<p className="text-xs text-surface-on-variant">
+									{t.settings.directCloudDesc}
+								</p>
+							</button>
+						</div>
+						{directTarget === "cloud" && (
+							<div className="space-y-2">
+								<label className="text-xs text-surface-on-variant block">
+									{t.settings.cloudGatewayAddr}
+								</label>
+								<input
+									value={directAddress}
+									onChange={(e) => setDirectAddress(e.target.value)}
+									placeholder={t.settings.cloudGatewayAddrPlaceholder}
+									className="w-full px-3 py-2 text-sm rounded-lg border border-white/15 bg-surface-variant text-surface-on placeholder:text-surface-on-variant/60 focus:outline-none focus:ring-1 focus:ring-white/20"
+									autoComplete="off"
+								/>
+								<Button
+									className="w-full"
+									disabled={!directAddress.trim()}
+									onClick={() => setDirectPickerOpen(false)}
+								>
+									{t.welcome.continue}
+								</Button>
+							</div>
+						)}
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

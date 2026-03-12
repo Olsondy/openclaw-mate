@@ -102,6 +102,21 @@ Current flow:
 This keeps tenant/direct flows symmetric and allows reconnect without re-entering
 credentials each time.
 
+## Startup Auto Reconnect
+
+Startup behavior is now gated by historical connection success:
+
+- `hasConnectedOnce` (persisted in frontend config store) indicates whether the
+  user has ever completed a successful gateway connection.
+- If `hasConnectedOnce === false`, app shows the welcome modal on startup.
+- If `hasConnectedOnce === true`, app skips welcome and attempts auto reconnect
+  based on `connectionMode`:
+  - `tenant`: restore license key from profile and call `verifyAndConnect`.
+  - `direct`: restore local/cloud direct profile and reconnect accordingly.
+
+During auto reconnect the app renders a blocking loading overlay to make the
+startup state explicit.
+
 ## WebSocket Event Emission
 
 Rust gateway client source: `src-tauri/src/ws_client.rs`
