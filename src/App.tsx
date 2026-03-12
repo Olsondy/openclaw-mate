@@ -12,7 +12,7 @@ import { ActivityPage } from "./pages/ActivityPage";
 import { ChannelPage } from "./pages/ChannelPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { useConfigStore } from "./store";
+import { useConfigStore, useTasksStore } from "./store";
 import type { ConnectionMode } from "./store/config.store";
 
 type GatewayEventEnvelope = {
@@ -22,6 +22,7 @@ type GatewayEventEnvelope = {
 
 function AppInner() {
 	const { setConnectionMode } = useConfigStore();
+	const hydrateLogsFromFile = useTasksStore((s) => s.hydrateLogsFromFile);
 	const [showChannelAuthDialog, setShowChannelAuthDialog] = useState(false);
 	const [showWelcome, setShowWelcome] = useState(false);
 	const theme = useI18nStore((s) => s.theme);
@@ -35,6 +36,11 @@ function AppInner() {
 			})
 			.catch(() => setShowWelcome(true));
 	}, []);
+
+	// 启动时从当日日志文件回灌活动日志
+	useEffect(() => {
+		void hydrateLogsFromFile();
+	}, [hydrateLogsFromFile]);
 
 	// 将主题色同步到 html 元素
 	useEffect(() => {

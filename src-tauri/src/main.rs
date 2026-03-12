@@ -1,6 +1,8 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod activity_log_store;
+mod app_paths;
 mod auth_client;
 mod config;
 mod device_identity;
@@ -129,6 +131,9 @@ fn main() {
             profile_store::get_local_profile,
             profile_store::save_local_profile,
             profile_store::export_config_snapshot,
+            activity_log_store::append_activity_log,
+            activity_log_store::load_activity_logs,
+            activity_log_store::clear_activity_logs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

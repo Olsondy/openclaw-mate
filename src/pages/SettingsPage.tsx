@@ -1,7 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import {
 	AlertCircle,
-	ArrowLeft,
 	Cable,
 	Cpu,
 	Eye,
@@ -112,27 +111,8 @@ export function SettingsPage() {
 	const [apiWizardOpen, setApiWizardOpen] = useState(false);
 
 	const isLoading = status === "auth_checking" || status === "connecting";
-	const hasKey = Boolean(licenseKey);
 	const isOnline = status === "online";
-
-	// Debug: 观察关键状态
-	console.log(
-		"[Settings] render — status:",
-		status,
-		"connectionMode:",
-		connectionMode,
-		"directMode:",
-		directMode,
-		"isOnline:",
-		isOnline,
-		"isDirectConnected:",
-		connectionMode === "local" && isOnline,
-		"isLocalConnected:",
-		connectionMode === "local" && isOnline && directMode === "local",
-		"isCloudConnected:",
-		connectionMode === "local" && isOnline && directMode === "cloud",
-	);
-
+	const hasKey = Boolean(licenseKey);
 	const isDirectConnected = connectionMode === "local" && isOnline;
 	const isLocalConnected = isDirectConnected && directMode === "local";
 	const isCloudConnected = isDirectConnected && directMode === "cloud";
@@ -199,19 +179,14 @@ export function SettingsPage() {
 		if (!directAddress.trim()) return;
 		setDirectLoading(true);
 		try {
-			console.log("[Settings] doConnectDirectCloud: starting...");
 			toast.message(t.settings.actionCloudConnecting);
 			const normalized = normalizeGatewayEndpoint(directAddress);
 			const ok = await connectDirectGateway({
 				gatewayUrl: normalized.gatewayUrl,
 				gatewayWebUI: normalized.gatewayWebUI,
 				gatewayToken: directToken.trim(),
-				profileLabel: t.settings.directCloudGateway,
+				profileLabel: "Direct Cloud",
 			});
-			console.log(
-				"[Settings] doConnectDirectCloud: connectDirectGateway ok =",
-				ok,
-			);
 			if (!ok) return;
 			setDirectMode("cloud");
 			setDirectCloudAddress(directAddress.trim());
@@ -219,7 +194,6 @@ export function SettingsPage() {
 				config: { connectionMode: "local" },
 			});
 			setConnectionMode("local");
-			console.log("[Settings] doConnectDirectCloud: done, closing modal");
 			closeDirectModalSuccess(t.settings.actionCloudConnected);
 		} finally {
 			setDirectLoading(false);
@@ -244,42 +218,26 @@ export function SettingsPage() {
 	const handleLocalConnect = async () => {
 		setDirectActionLoading("local-connect");
 		try {
-			console.log(
-				"[Settings] handleLocalConnect: starting local_connect invoke...",
-			);
 			toast.message(t.localConnect.connecting);
 			const result = await invoke<{
 				gateway_url: string;
 				gateway_web_ui: string;
 				token: string;
 			}>("local_connect");
-			console.log(
-				"[Settings] handleLocalConnect: local_connect result:",
-				result,
-			);
 			const ok = await connectDirectGateway({
 				gatewayUrl: result.gateway_url,
 				gatewayWebUI: result.gateway_web_ui,
 				gatewayToken: result.token,
 				profileLabel: t.settings.directLocalGateway,
 			});
-			console.log(
-				"[Settings] handleLocalConnect: connectDirectGateway ok =",
-				ok,
-			);
 			if (!ok) return;
 			setDirectMode("local");
 			await invoke("save_app_config", {
 				config: { connectionMode: "local" },
 			});
 			setConnectionMode("local");
-			console.log(
-				"[Settings] handleLocalConnect: connectionMode set to 'local', directMode set to 'local', status =",
-				status,
-			);
 			closeDirectModalSuccess(t.localConnect.connected);
 		} catch (e) {
-			console.error("[Settings] handleLocalConnect error:", e);
 			toast.error(String(e));
 		} finally {
 			setDirectActionLoading(null);
@@ -300,7 +258,7 @@ export function SettingsPage() {
 				gatewayUrl: result.gateway_url,
 				gatewayWebUI: result.gateway_web_ui,
 				gatewayToken: result.token,
-				profileLabel: t.settings.directLocalGateway,
+				profileLabel: "Direct Local",
 			});
 			if (!ok) return;
 			setDirectMode("local");
@@ -344,7 +302,7 @@ export function SettingsPage() {
 				gatewayUrl: normalized.gatewayUrl,
 				gatewayWebUI: normalized.gatewayWebUI,
 				gatewayToken: token,
-				profileLabel: t.settings.directCloudGateway,
+				profileLabel: "Direct Cloud",
 			});
 			if (!ok) return;
 			setDirectMode("cloud");
@@ -367,7 +325,8 @@ export function SettingsPage() {
 	const selectClass =
 		"text-sm px-2 py-1 rounded-lg border border-white/15 bg-surface-variant text-surface-on focus:outline-none";
 	const activeModeCardClass =
-		"border-primary bg-primary/5 dark:bg-primary/10 relative";
+		"border-primary/60 bg-primary/8 ring-1 ring-primary/30 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.2)]";
+
 	return (
 		<>
 			<TopBar title={t.sidebar.settings} />
@@ -441,7 +400,6 @@ export function SettingsPage() {
 							)}
 
 							<div className="flex items-center gap-1.5">
-								{" "}
 								<Server
 									size={15}
 									className={
@@ -502,6 +460,7 @@ export function SettingsPage() {
 						</Card>
 					</div>
 
+					{/* 节点能力 */}
 					<Card className="mb-3">
 						<div className="flex items-center gap-2 mb-2">
 							<Cpu size={15} className="text-primary" />
@@ -544,6 +503,7 @@ export function SettingsPage() {
 							)}
 						</div>
 					</Card>
+
 					{/* 审批规则 */}
 					<Card>
 						<div className="flex items-center gap-2 mb-3">
@@ -939,11 +899,22 @@ export function SettingsPage() {
 								<button
 									type="button"
 									onClick={() => setDirectTarget(null)}
-									className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-surface-on-variant hover:text-surface-on border border-white/10 hover:border-white/20 rounded-lg transition-all bg-surface-variant/30 hover:bg-surface-variant/60"
+									className="text-xs text-surface-on-variant hover:text-surface-on transition-colors"
 								>
-									<ArrowLeft size={12} />
 									{t.settings.backToSelect}
 								</button>
+								{isCloudConnected && (
+									<div className="rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs text-green-500 space-y-1.5">
+										<div className="flex items-center gap-2">
+											<span>{t.settings.actionCloudConnected}</span>
+										</div>
+										{directCloudAddress && (
+											<p className="font-mono text-[11px] text-surface-on truncate">
+												{directCloudAddress}
+											</p>
+										)}
+									</div>
+								)}
 								<div>
 									<label className="text-xs text-surface-on-variant mb-1.5 block">
 										{t.settings.cloudGatewayAddr}

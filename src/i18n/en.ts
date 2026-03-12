@@ -32,7 +32,7 @@ export const en: Dict = {
 		status: "Status",
 		totalTasks: "Total Events",
 		successTasks: "Successes",
-		openclawVersion: "OpenClaw Version",
+		openclawVersion: "Version",
 		configuredModels: "Configured Models",
 		efficiency: "Efficiency",
 		avgDuration: "Avg response time",
@@ -79,6 +79,7 @@ export const en: Dict = {
 		keywordLabel: "Keyword",
 		keywordPlaceholder: "Filter by title, description, or tag",
 		clearFilters: "Clear Filters",
+		clearLogsFile: "Clear Log File",
 		noLogs: "No activity logs yet",
 	},
 
@@ -272,5 +273,15 @@ export const en: Dict = {
 		switchModeConfirm: "Confirm Switch",
 		modeCloud: "Tenant Connection",
 		modeLocal: "Direct Gateway",
+	},
+	activityLog: {
+		title: "Activity Log",
+		clientTab: "Client Logs",
+		gatewayTab: "Gateway Logs",
+		auditTab: "Audit Logs",
+		clientEmpty: "No client logs yet",
+		gatewayEmpty: "Gateway logs coming soon",
+		auditEmpty: "No audit logs yet",
+		clear: "Clear",
 	},
 };

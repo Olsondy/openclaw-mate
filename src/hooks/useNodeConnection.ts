@@ -2,7 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { useT } from "../i18n";
-import { useConfigStore, useConnectionStore } from "../store";
+import { makeLogId } from "../lib/activity-log";
+import { useConfigStore, useConnectionStore, useTasksStore } from "../store";
 import type { VerifyResponse } from "../types";
 import { useTauriEvent } from "./useTauri";
 
@@ -24,6 +25,7 @@ interface DirectGatewayOptions {
 
 export function useNodeConnection() {
 	const { setStatus, setError, clearError } = useConnectionStore();
+	const addClientLog = useTasksStore((s) => s.addClientLog);
 	const t = useT();
 	const {
 		licenseKey,
@@ -47,9 +49,36 @@ export function useNodeConnection() {
 		useCallback((msg) => setError(msg), [setError]),
 	);
 
+	const addConnectionLog = useCallback(
+		(
+			level: "success" | "error" | "warning" | "info" | "pending",
+			title: string,
+			description: string,
+			tags: string[],
+		) => {
+			addClientLog({
+				id: makeLogId("mate"),
+				timestamp: new Date(),
+				task_id: "",
+				source: "mate",
+				level,
+				title,
+				description,
+				tags,
+			});
+		},
+		[addClientLog],
+	);
+
 	const verifyAndConnect = useCallback(async () => {
 		if (!licenseKey.trim()) {
 			toast.warning(t.settings.licenseKeyRequired);
+			addConnectionLog(
+				"warning",
+				"Mate: Tenant connect blocked",
+				t.settings.licenseKeyRequired,
+				["mate", "connection", "tenant", "blocked"],
+			);
 			return;
 		}
 
@@ -58,6 +87,12 @@ export function useNodeConnection() {
 			setStatus("auth_checking");
 			const identity = await getDeviceIdentity();
 			const deviceName = getDeviceName();
+			addConnectionLog(
+				"info",
+				"Mate: Tenant verify started",
+				`device=${deviceName}`,
+				["mate", "connection", "tenant", "verify"],
+			);
 
 			let result: VerifyResponse;
 			if (import.meta.env.DEV) {
@@ -79,6 +114,12 @@ export function useNodeConnection() {
 			if (!result.success) {
 				setStatus("unauthorized");
 				setError(t.settings.licenseKeyInvalid);
+				addConnectionLog(
+					"error",
+					"Mate: Tenant verify failed",
+					t.settings.licenseKeyInvalid,
+					["mate", "connection", "tenant", "verify", "failed"],
+				);
 				return;
 			}
 
@@ -86,11 +127,16 @@ export function useNodeConnection() {
 
 			if (userProfile.licenseStatus !== "Valid") {
 				setStatus("unauthorized");
-				setError(
-					t.settings.authStatusException
-						.replace("{status}", userProfile.licenseStatus || "-")
-						.replace("{expiry}", userProfile.expiryDate || "-"),
-				);
+				const errMsg = t.settings.authStatusException
+					.replace("{status}", userProfile.licenseStatus || "-")
+					.replace("{expiry}", userProfile.expiryDate || "-");
+				setError(errMsg);
+				addConnectionLog("error", "Mate: Tenant status invalid", errMsg, [
+					"mate",
+					"connection",
+					"tenant",
+					"unauthorized",
+				]);
 				return;
 			}
 
@@ -103,6 +149,12 @@ export function useNodeConnection() {
 			}
 
 			setStatus("connecting");
+			addConnectionLog(
+				"info",
+				"Mate: Connecting tenant gateway",
+				nodeConfig.gatewayUrl,
+				["mate", "connection", "tenant", "connecting"],
+			);
 			await invoke("connect_gateway", {
 				gatewayUrl: nodeConfig.gatewayUrl,
 				token: nodeConfig.gatewayToken,
@@ -111,11 +163,25 @@ export function useNodeConnection() {
 				publicKeyRaw: identity.public_key_raw,
 				privateKeyRaw: identity.private_key_raw ?? null,
 			});
+			addConnectionLog(
+				"success",
+				"Mate: Tenant gateway connected",
+				nodeConfig.gatewayUrl,
+				["mate", "connection", "tenant", "connected"],
+			);
 		} catch (e) {
-			setError(String(e));
+			const msg = String(e);
+			setError(msg);
 			setStatus("error");
+			addConnectionLog(
+				"error",
+				"Mate: Tenant connect failed",
+				msg || "Unknown error",
+				["mate", "connection", "tenant", "failed"],
+			);
 		}
 	}, [
+		addConnectionLog,
 		clearError,
 		licenseKey,
 		setError,
@@ -134,12 +200,24 @@ export function useNodeConnection() {
 			const gatewayToken = opts.gatewayToken?.trim() ?? "";
 			if (!gatewayUrl) {
 				setError(t.settings.cloudGatewayAddrRequired);
+				addConnectionLog(
+					"warning",
+					"Mate: Direct connect blocked",
+					t.settings.cloudGatewayAddrRequired,
+					["mate", "connection", "direct", "blocked"],
+				);
 				return false;
 			}
 
 			try {
 				clearError();
 				setStatus("connecting");
+				addConnectionLog("info", "Mate: Direct connect started", gatewayUrl, [
+					"mate",
+					"connection",
+					"direct",
+					"connecting",
+				]);
 
 				const identity = await getDeviceIdentity();
 				const deviceName = getDeviceName();
@@ -168,14 +246,28 @@ export function useNodeConnection() {
 					publicKeyRaw: identity.public_key_raw,
 					privateKeyRaw: identity.private_key_raw ?? null,
 				});
+				addConnectionLog(
+					"success",
+					"Mate: Direct gateway connected",
+					gatewayUrl,
+					["mate", "connection", "direct", "connected"],
+				);
 				return true;
 			} catch (e) {
-				setError(String(e));
+				const msg = String(e);
+				setError(msg);
 				setStatus("error");
+				addConnectionLog(
+					"error",
+					"Mate: Direct connect failed",
+					msg || "Unknown error",
+					["mate", "connection", "direct", "failed"],
+				);
 				return false;
 			}
 		},
 		[
+			addConnectionLog,
 			clearError,
 			setError,
 			setRuntimeConfig,
@@ -188,12 +280,24 @@ export function useNodeConnection() {
 	);
 
 	const reconnectCurrent = useCallback(async () => {
+		addConnectionLog(
+			"info",
+			"Mate: Reconnect requested",
+			`mode=${connectionMode}`,
+			["mate", "connection", "reconnect"],
+		);
 		if (connectionMode === "license") {
 			await verifyAndConnect();
 			return;
 		}
 		if (!runtimeConfig) {
 			setError(t.settings.reconnectMissing);
+			addConnectionLog(
+				"warning",
+				"Mate: Reconnect blocked",
+				t.settings.reconnectMissing,
+				["mate", "connection", "reconnect", "blocked"],
+			);
 			return;
 		}
 		await connectDirectGateway({
@@ -203,6 +307,7 @@ export function useNodeConnection() {
 			profileLabel: t.settings.modeLocal,
 		});
 	}, [
+		addConnectionLog,
 		connectDirectGateway,
 		connectionMode,
 		runtimeConfig,

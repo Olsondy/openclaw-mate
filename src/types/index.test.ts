@@ -18,6 +18,7 @@ describe("Types", () => {
 			id: "1",
 			timestamp: new Date(),
 			task_id: "task-1",
+			source: "mate",
 			level: "success",
 			title: "Test",
 			description: "Test log",

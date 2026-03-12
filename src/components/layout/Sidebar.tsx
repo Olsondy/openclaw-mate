@@ -28,8 +28,8 @@ export function Sidebar() {
 
 	const navItems = [
 		{ to: "/", icon: LayoutDashboard, label: t.sidebar.dashboard },
-		{ to: "/activity", icon: ClipboardList, label: t.sidebar.activity },
 		{ to: "/channel", icon: MessageSquare, label: t.sidebar.channel },
+		{ to: "/activity", icon: ClipboardList, label: t.sidebar.activity },
 	];
 
 	const openConsole = async () => {

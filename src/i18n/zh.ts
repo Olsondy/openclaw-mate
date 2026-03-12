@@ -71,6 +71,7 @@ export type Dict = {
 		keywordLabel: string;
 		keywordPlaceholder: string;
 		clearFilters: string;
+		clearLogsFile: string;
 		noLogs: string;
 	};
 	capabilities: {
@@ -234,6 +235,16 @@ export type Dict = {
 		modeCloud: string;
 		modeLocal: string;
 	};
+	activityLog: {
+		title: string;
+		clientTab: string;
+		gatewayTab: string;
+		auditTab: string;
+		clientEmpty: string;
+		gatewayEmpty: string;
+		auditEmpty: string;
+		clear: string;
+	};
 };
 
 export const zh: Dict = {
@@ -268,7 +279,7 @@ export const zh: Dict = {
 		status: "当前状态",
 		totalTasks: "事件总数",
 		successTasks: "成功记录",
-		openclawVersion: "OpenClaw 版本",
+		openclawVersion: "版本",
 		configuredModels: "已配置模型数",
 		efficiency: "执行效率",
 		avgDuration: "平均响应耗时",
@@ -315,6 +326,7 @@ export const zh: Dict = {
 		keywordLabel: "关键词",
 		keywordPlaceholder: "按标题、描述或标签筛选",
 		clearFilters: "清空筛选",
+		clearLogsFile: "清空日志文件",
 		noLogs: "暂无活动日志",
 	},
 
@@ -498,5 +510,15 @@ export const zh: Dict = {
 		switchModeConfirm: "确认切换",
 		modeCloud: "租户连接",
 		modeLocal: "网关直连",
+	},
+	activityLog: {
+		title: "活动日志",
+		clientTab: "客户端日志",
+		gatewayTab: "Gateway 日志",
+		auditTab: "审计日志",
+		clientEmpty: "暂无客户端日志",
+		gatewayEmpty: "Gateway 日志功能开发中",
+		auditEmpty: "暂无审计日志",
+		clear: "清空",
 	},
 };

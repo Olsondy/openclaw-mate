@@ -41,7 +41,7 @@ export function DashboardPage() {
 
 	const stats = getStats();
 	const taskLogs = useMemo(
-		() => logs.filter((log) => !isGatewayLog(log)),
+		() => logs.filter((log) => log.source === "mate" && Boolean(log.task_id)),
 		[logs],
 	);
 	const isEmpty = taskLogs.length === 0;
@@ -344,16 +344,6 @@ export function DashboardPage() {
 			</div>
 		</>
 	);
-}
-
-function isGatewayLog(log: ActivityLog): boolean {
-	if (log.title.toLowerCase().startsWith("gateway:")) {
-		return true;
-	}
-	return log.tags.some((tag) => {
-		const normalized = tag.toLowerCase();
-		return normalized === "gateway" || normalized === "event";
-	});
 }
 
 function resolveGatewayVersion(payload: unknown): string | null {

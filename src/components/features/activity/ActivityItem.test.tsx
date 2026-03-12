@@ -6,6 +6,7 @@ const mockLog: ActivityLog = {
 	id: "1",
 	timestamp: new Date("2026-03-04T14:30:00"),
 	task_id: "task-1",
+	source: "mate",
 	level: "success",
 	title: "Browser task completed",
 	description: "Searched for weather info",

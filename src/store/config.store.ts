@@ -27,7 +27,7 @@ interface ConfigState {
 	approvalRules: ApprovalRules;
 	licenseId: number | null;
 
-	/** 连接模式：null 表示首次启动未选择，从 ~/clawmate/config.json 加载 */
+	/** 连接模式：null 表示首次启动未选择，从 ~/.clatemate/config.json 加载 */
 	connectionMode: ConnectionMode | null;
 	/** 直连子模式：本地网关 / 云端网关 */
 	directMode: DirectMode | null;

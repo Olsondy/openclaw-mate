@@ -1,4 +1,9 @@
 import { useCallback } from "react";
+import {
+	inferGatewayEventLevel,
+	makeLogId,
+	summarizeLogPayload,
+} from "../lib/activity-log";
 import { useConfigStore, useTasksStore } from "../store";
 import type { ActivityLog, TaskType } from "../types";
 import { useTauriEvent } from "./useTauri";
@@ -46,9 +51,10 @@ export function useTaskHandler() {
 						task.require_approval);
 
 				const log: ActivityLog = {
-					id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+					id: makeLogId("task"),
 					timestamp: new Date(),
 					task_id: task.task_id,
+					source: "mate",
 					level: needsApproval ? "pending" : "info",
 					title: `${task.type} 任务`,
 					description: formatDescription(task),
@@ -83,12 +89,13 @@ export function useTaskHandler() {
 		useCallback(
 			(data) => {
 				const log: ActivityLog = {
-					id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+					id: makeLogId("gw"),
 					timestamp: new Date(),
 					task_id: "",
+					source: "gateway",
 					level: inferGatewayEventLevel(data.event),
 					title: `Gateway: ${data.event}`,
-					description: JSON.stringify(data.payload ?? {}).slice(0, 200),
+					description: summarizeLogPayload(data.payload),
 					tags: ["gateway", "event", data.event],
 				};
 				addLog(log);
@@ -104,31 +111,5 @@ function formatDescription(task: WsTaskPayload): string {
 	if (task.type === "system" && payload.command) {
 		return `$ ${String(payload.command)}`;
 	}
-	return JSON.stringify(payload).slice(0, 200);
-}
-
-function inferGatewayEventLevel(eventName: string): ActivityLog["level"] {
-	const normalized = eventName.toLowerCase();
-	if (
-		normalized.includes("error") ||
-		normalized.includes("fail") ||
-		normalized.includes("reject")
-	) {
-		return "error";
-	}
-	if (
-		normalized.includes("warn") ||
-		normalized.includes("required") ||
-		normalized.includes("timeout")
-	) {
-		return "warning";
-	}
-	if (
-		normalized.includes("resolved") ||
-		normalized.includes("success") ||
-		normalized.includes("connected")
-	) {
-		return "success";
-	}
-	return "info";
+	return summarizeLogPayload(payload);
 }

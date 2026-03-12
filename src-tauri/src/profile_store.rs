@@ -6,17 +6,12 @@ use serde::{Deserialize, Serialize};
 
 // ─── 目录 ─────────────────────────────────────────────────────────────────────
 
-fn get_clawmate_dir() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "无法获取用户主目录".to_string())?;
-    let dir = home.join("clawmate");
-    fs::create_dir_all(&dir).map_err(|e| format!("创建 clawmate 目录失败: {}", e))?;
-    Ok(dir)
+fn get_clatemate_dir() -> Result<PathBuf, String> {
+    crate::app_paths::app_root_dir()
 }
 
 fn profiles_dir() -> Result<PathBuf, String> {
-    let dir = get_clawmate_dir()?.join("profiles");
-    fs::create_dir_all(&dir).map_err(|e| format!("创建 profiles 目录失败: {}", e))?;
-    Ok(dir)
+    crate::app_paths::app_profiles_dir()
 }
 
 // ─── 数据结构 ─────────────────────────────────────────────────────────────────
@@ -79,13 +74,13 @@ fn write_json<T: Serialize>(path: &PathBuf, value: &T) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_app_config() -> Result<AppConfig, String> {
-    let dir = get_clawmate_dir()?;
+    let dir = get_clatemate_dir()?;
     Ok(read_json(&dir.join("config.json")))
 }
 
 #[tauri::command]
 pub fn save_app_config(config: AppConfig) -> Result<(), String> {
-    let dir = get_clawmate_dir()?;
+    let dir = get_clatemate_dir()?;
     write_json(&dir.join("config.json"), &config)
 }
 
@@ -121,12 +116,11 @@ pub fn save_local_profile(profile: LocalProfile) -> Result<(), String> {
     write_json(&profiles_dir()?.join("local.json"), &profile)
 }
 
-/// 将当前 license 配置导出为 JSON 快照文件，保存至 ~/clawmate/exports/
+/// 将当前 license 配置导出为 JSON 快照文件，保存至 ~/.clatemate/exports/
 /// 返回文件路径字符串，供前端展示给用户
 #[tauri::command]
 pub fn export_config_snapshot(profile: LicenseProfile) -> Result<String, String> {
-    let exports_dir = get_clawmate_dir()?.join("exports");
-    fs::create_dir_all(&exports_dir).map_err(|e| e.to_string())?;
+    let exports_dir = crate::app_paths::app_exports_dir()?;
 
     let ts = SystemTime::now()
         .duration_since(UNIX_EPOCH)

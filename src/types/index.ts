@@ -1,5 +1,6 @@
 export type TaskType = "browser" | "system" | "vision";
 export type LogLevel = "success" | "error" | "warning" | "info" | "pending";
+export type ActivityLogSource = "mate" | "gateway";
 export type ApprovalMode = "always" | "never" | "sensitive_only";
 export type NodeStatus =
 	| "idle"
@@ -23,6 +24,7 @@ export interface ActivityLog {
 	id: string;
 	timestamp: Date;
 	task_id: string;
+	source: ActivityLogSource;
 	level: LogLevel;
 	title: string;
 	description: string;

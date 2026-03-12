@@ -1,9 +1,11 @@
 import { Outlet } from "react-router-dom";
+import { useRuntimeLogBridge } from "../../hooks/useRuntimeLogBridge";
 import { useTaskHandler } from "../../hooks/useTaskHandler";
 import { Sidebar } from "./Sidebar";
 
 export function AppLayout() {
 	useTaskHandler();
+	useRuntimeLogBridge();
 
 	return (
 		<div className="flex h-screen overflow-hidden bg-transparent text-surface-on">
