@@ -240,6 +240,11 @@ export type Dict = {
 		switchModeConfirm: string;
 		modeCloud: string;
 		modeLocal: string;
+		openclawInstallHint: string;
+		openclawInstallAction: string;
+		openclawInstalling: string;
+		openclawInstallSuccess: string;
+		openclawInstallFailed: string;
 	};
 	activityLog: {
 		title: string;
@@ -522,6 +527,13 @@ export const zh: Dict = {
 		switchModeConfirm: "确认切换",
 		modeCloud: "租户连接",
 		modeLocal: "网关直连",
+		openclawInstallHint:
+			"检测到本机未安装可用的 OpenClaw Runtime，点击下方按钮安装内置 Runtime 后重试。",
+		openclawInstallAction: "一键安装内置 Runtime",
+		openclawInstalling: "正在安装内置 Runtime...",
+		openclawInstallSuccess: "内置 Runtime 安装完成，正在重新连接",
+		openclawInstallFailed:
+			"内置 Runtime 安装失败，请检查安装包是否包含 Runtime",
 	},
 	activityLog: {
 		title: "活动日志",

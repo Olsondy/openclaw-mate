@@ -90,6 +90,15 @@ function isGatewayTokenMismatchError(message: string): boolean {
 	);
 }
 
+function isOpenclawNotInstalledError(message: string): boolean {
+	const normalized = message.toLowerCase();
+	return (
+		normalized.includes("openclaw_not_installed") ||
+		normalized.includes("未安装 openclaw") ||
+		normalized.includes("openclaw cli 未安装")
+	);
+}
+
 function SectionHeader({ title }: { title: string }) {
 	return (
 		<h2 className="text-xs font-semibold text-surface-on-variant uppercase tracking-wider px-1 mb-2">
@@ -145,6 +154,7 @@ export function SettingsPage() {
 		| "cloud-restart"
 		| null
 	>(null);
+	const [openclawInstallLoading, setOpenclawInstallLoading] = useState(false);
 	const [switchModeRequest, setSwitchModeRequest] = useState<{
 		fromMode: ConnectionMode;
 		toMode: ConnectionMode;
@@ -163,7 +173,8 @@ export function SettingsPage() {
 	const isDirectConnected = connectionMode === "direct" && isOnline;
 	const isLocalConnected = isDirectConnected && directMode === "local";
 	const isCloudConnected = isDirectConnected && directMode === "cloud";
-	const directBusy = directLoading || directActionLoading !== null;
+	const directBusy =
+		directLoading || directActionLoading !== null || openclawInstallLoading;
 
 	const isLoopbackGateway = useCallback((endpoint: string): boolean => {
 		const raw = endpoint.trim();
@@ -683,6 +694,50 @@ export function SettingsPage() {
 		}
 	};
 
+	const handleInstallOpenclaw = async () => {
+		setOpenclawInstallLoading(true);
+		try {
+			setDirectStatus({
+				level: "info",
+				message: t.settings.openclawInstalling,
+			});
+			addDirectActionLog(
+				"info",
+				"Mate: OpenClaw install started",
+				t.settings.openclawInstalling,
+				["mate", "connection", "local", "install", "start"],
+			);
+			const installMessage = await invoke<string>("install_openclaw_cli");
+			addDirectActionLog(
+				"success",
+				"Mate: OpenClaw install completed",
+				installMessage || t.settings.openclawInstallSuccess,
+				["mate", "connection", "local", "install", "success"],
+			);
+			setDirectStatus({
+				level: "info",
+				message: t.settings.openclawInstallSuccess,
+			});
+			toast.success(t.settings.openclawInstallSuccess);
+			await handleLocalConnect();
+		} catch (e) {
+			const msg = String(e);
+			setDirectStatus({
+				level: "error",
+				message: msg || t.settings.openclawInstallFailed,
+			});
+			addDirectActionLog(
+				"error",
+				"Mate: OpenClaw install failed",
+				msg || t.settings.openclawInstallFailed,
+				["mate", "connection", "local", "install", "failed"],
+			);
+			toast.error(t.settings.openclawInstallFailed);
+		} finally {
+			setOpenclawInstallLoading(false);
+		}
+	};
+
 	const handleLocalRestart = async () => {
 		setDirectActionLoading("local-restart");
 		try {
@@ -1180,6 +1235,29 @@ export function SettingsPage() {
 								{directStatus.message}
 							</div>
 						)}
+						{directStatus?.level === "error" &&
+							isOpenclawNotInstalledError(directStatus.message) && (
+								<div className="rounded-lg border border-primary/30 bg-primary/8 px-3 py-2.5 space-y-2">
+									<p className="text-xs text-primary/90">
+										{t.settings.openclawInstallHint}
+									</p>
+									<Button
+										size="sm"
+										className="w-full"
+										onClick={handleInstallOpenclaw}
+										disabled={directBusy}
+									>
+										{openclawInstallLoading ? (
+											<span className="flex items-center gap-2">
+												<Loader2 size={12} className="animate-spin" />
+												{t.settings.openclawInstalling}
+											</span>
+										) : (
+											t.settings.openclawInstallAction
+										)}
+									</Button>
+								</div>
+							)}
 
 						{directTarget === null && (
 							<div className="space-y-3">

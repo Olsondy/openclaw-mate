@@ -11,3 +11,5 @@ sidecar/dist/
 .claude/settings.local.json
 cargo_check_output.txt
 check.bat
+src-tauri/runtime/openclaw/*
+!src-tauri/runtime/openclaw/.gitkeep

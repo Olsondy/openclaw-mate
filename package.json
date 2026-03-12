@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "runtime:prepare": "node scripts/prepare-openclaw-runtime.mjs",
     "preview": "vite preview",
     "lint": "biome lint .",
     "check": "pnpm run check:web",
@@ -17,7 +18,7 @@
     "check:all": "pnpm run check:lint && pnpm run check:test && pnpm run check:web && pnpm run check:sidecar",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri:build": "pnpm run runtime:prepare && tauri build",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "husky"

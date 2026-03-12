@@ -279,6 +279,13 @@ export const en: Dict = {
 		switchModeConfirm: "Confirm Switch",
 		modeCloud: "Tenant Connection",
 		modeLocal: "Direct Gateway",
+		openclawInstallHint:
+			"No usable OpenClaw runtime was found. Install the bundled runtime and retry.",
+		openclawInstallAction: "Install Bundled Runtime",
+		openclawInstalling: "Installing bundled runtime...",
+		openclawInstallSuccess: "Bundled runtime installed. Reconnecting...",
+		openclawInstallFailed:
+			"Bundled runtime installation failed. Check whether this build includes runtime assets.",
 	},
 	activityLog: {
 		title: "Activity Log",

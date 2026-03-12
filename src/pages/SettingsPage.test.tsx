@@ -95,6 +95,58 @@ describe("SettingsPage breathing indicators", () => {
 		expect(localConnectCalls.length).toBe(1);
 	});
 
+	it("shows one-click install action when openclaw is not installed", async () => {
+		useConnectionStore.setState({
+			status: "idle",
+			errorMessage: null,
+			onlineAt: null,
+		});
+		useConfigStore.setState({
+			connectionMode: null,
+			directMode: null,
+		});
+		let localConnectAttempts = 0;
+		invokeMock.mockImplementation(async (cmd: string) => {
+			if (cmd === "local_connect") {
+				localConnectAttempts += 1;
+				if (localConnectAttempts === 1) {
+					throw new Error(
+						"OPENCLAW_NOT_INSTALLED: 本机未检测到可用 OpenClaw Runtime。",
+					);
+				}
+				return {
+					gateway_url: "ws://127.0.0.1:18789",
+					gateway_web_ui: "http://127.0.0.1:18789/#token=test",
+					token: "test",
+				};
+			}
+			if (cmd === "install_openclaw_cli") {
+				return "openclaw installed";
+			}
+			return undefined;
+		});
+
+		render(<SettingsPage />);
+		const directLabel = screen.getByText("直连");
+		fireEvent.click(directLabel.closest("button") as HTMLButtonElement);
+		const localDesc = await waitFor(() =>
+			screen.getByText("自动探测本机已安装的网关"),
+		);
+		fireEvent.click(localDesc.closest("button") as HTMLButtonElement);
+
+		const installBtn = await waitFor(() =>
+			screen.getByRole("button", { name: "一键安装内置 Runtime" }),
+		);
+		fireEvent.click(installBtn);
+
+		await waitFor(() => {
+			expect(invokeMock).toHaveBeenCalledWith("install_openclaw_cli");
+		});
+		await waitFor(() => {
+			expect(connectDirectGatewayMock).toHaveBeenCalledTimes(1);
+		});
+	});
+
 	it("restarts local gateway and retries when local token mismatches", async () => {
 		useConnectionStore.setState({
 			status: "idle",
