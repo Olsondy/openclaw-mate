@@ -29,7 +29,9 @@ import { Button, Card, Switch } from "../components/ui";
 import { useNodeConnection } from "../hooks/useNodeConnection";
 import type { Locale, Theme } from "../i18n";
 import { useI18nStore, useT } from "../i18n";
-import { useConfigStore, useConnectionStore } from "../store";
+import { makeLogId } from "../lib/activity-log";
+import { useConfigStore, useConnectionStore, useTasksStore } from "../store";
+import type { LogLevel } from "../types";
 
 function maskLicenseKey(key: string): string {
 	const parts = key.split("-");
@@ -89,6 +91,7 @@ export function SettingsPage() {
 	} = useConfigStore();
 	const { status, errorMessage, setStatus } = useConnectionStore();
 	const { verifyAndConnect, connectDirectGateway } = useNodeConnection();
+	const addClientLog = useTasksStore((s) => s.addClientLog);
 	const t = useT();
 	const { locale, theme, setLocale, setTheme } = useI18nStore();
 
@@ -143,6 +146,99 @@ export function SettingsPage() {
 			description: t.capabilities.visionDesc,
 		},
 	];
+
+	const addDirectActionLog = (
+		level: LogLevel,
+		title: string,
+		description: string,
+		tags: string[],
+	) => {
+		addClientLog({
+			id: makeLogId("mate"),
+			timestamp: new Date(),
+			task_id: "",
+			source: "mate",
+			level,
+			title,
+			description,
+			tags,
+		});
+	};
+
+	const sleep = (ms: number) =>
+		new Promise<void>((resolve) => {
+			setTimeout(resolve, ms);
+		});
+
+	const connectDiscoveredLocalGateway = async () => {
+		const result = await invoke<{
+			gateway_url: string;
+			gateway_web_ui: string;
+			token: string;
+		}>("local_connect");
+		const ok = await connectDirectGateway({
+			gatewayUrl: result.gateway_url,
+			gatewayWebUI: result.gateway_web_ui,
+			gatewayToken: result.token,
+			profileLabel: t.settings.directLocalGateway,
+		});
+		if (!ok) {
+			const reason =
+				useConnectionStore.getState().errorMessage || t.localConnect.errorMsg;
+			throw new Error(reason);
+		}
+	};
+
+	const recoverAndConnectLocalGateway = async () => {
+		try {
+			await connectDiscoveredLocalGateway();
+			return;
+		} catch (initialError) {
+			addDirectActionLog(
+				"warning",
+				"Mate: Local direct initial connect failed",
+				String(initialError),
+				["mate", "connection", "local", "recover", "initial-failed"],
+			);
+			let lastError: unknown = initialError;
+			for (const action of ["start", "restart"] as const) {
+				try {
+					const actionMessage =
+						action === "start"
+							? t.settings.actionLocalStarting
+							: t.settings.actionLocalRestarting;
+					toast.message(actionMessage);
+					addDirectActionLog(
+						"warning",
+						`Mate: Local direct auto-recover (${action})`,
+						actionMessage,
+						["mate", "connection", "local", "recover", action],
+					);
+					await invoke("local_gateway_daemon", { action });
+					await sleep(1200);
+					await connectDiscoveredLocalGateway();
+					addDirectActionLog(
+						"success",
+						`Mate: Local direct auto-recover succeeded (${action})`,
+						t.localConnect.connected,
+						["mate", "connection", "local", "recover", action, "success"],
+					);
+					return;
+				} catch (error) {
+					lastError = error;
+					addDirectActionLog(
+						"warning",
+						`Mate: Local direct auto-recover failed (${action})`,
+						String(error),
+						["mate", "connection", "local", "recover", action, "failed"],
+					);
+				}
+			}
+			throw lastError instanceof Error
+				? lastError
+				: new Error(String(lastError));
+		}
+	};
 
 	const doActivate = async () => {
 		setShowConfirmKey(false);
@@ -219,18 +315,13 @@ export function SettingsPage() {
 		setDirectActionLoading("local-connect");
 		try {
 			toast.message(t.localConnect.connecting);
-			const result = await invoke<{
-				gateway_url: string;
-				gateway_web_ui: string;
-				token: string;
-			}>("local_connect");
-			const ok = await connectDirectGateway({
-				gatewayUrl: result.gateway_url,
-				gatewayWebUI: result.gateway_web_ui,
-				gatewayToken: result.token,
-				profileLabel: t.settings.directLocalGateway,
-			});
-			if (!ok) return;
+			addDirectActionLog(
+				"info",
+				"Mate: Local direct connect preparing",
+				t.localConnect.connecting,
+				["mate", "connection", "local", "precheck"],
+			);
+			await recoverAndConnectLocalGateway();
 			setDirectMode("local");
 			await invoke("save_app_config", {
 				config: { connectionMode: "local" },
@@ -238,7 +329,14 @@ export function SettingsPage() {
 			setConnectionMode("local");
 			closeDirectModalSuccess(t.localConnect.connected);
 		} catch (e) {
-			toast.error(String(e));
+			const msg = String(e);
+			toast.error(msg);
+			addDirectActionLog(
+				"error",
+				"Mate: Local direct connect failed",
+				msg || "Unknown error",
+				["mate", "connection", "local", "failed"],
+			);
 		} finally {
 			setDirectActionLoading(null);
 		}
@@ -248,6 +346,12 @@ export function SettingsPage() {
 		setDirectActionLoading("local-restart");
 		try {
 			toast.message(t.settings.actionLocalRestarting);
+			addDirectActionLog(
+				"info",
+				"Mate: Local gateway restart requested",
+				t.settings.actionLocalRestarting,
+				["mate", "connection", "local", "restart"],
+			);
 			await invoke("local_gateway_daemon", { action: "restart" });
 			const result = await invoke<{
 				gateway_url: string;
@@ -268,7 +372,14 @@ export function SettingsPage() {
 			setConnectionMode("local");
 			closeDirectModalSuccess(t.settings.actionLocalRestarted);
 		} catch (e) {
-			toast.error(String(e));
+			const msg = String(e);
+			toast.error(msg);
+			addDirectActionLog(
+				"error",
+				"Mate: Local gateway restart failed",
+				msg || "Unknown error",
+				["mate", "connection", "local", "restart", "failed"],
+			);
 		} finally {
 			setDirectActionLoading(null);
 		}
@@ -278,10 +389,23 @@ export function SettingsPage() {
 		setDirectActionLoading("cloud-disconnect");
 		try {
 			toast.message(t.settings.actionCloudDisconnecting);
+			addDirectActionLog(
+				"info",
+				"Mate: Cloud direct disconnect requested",
+				t.settings.actionCloudDisconnecting,
+				["mate", "connection", "cloud", "disconnect"],
+			);
 			await disconnectGatewaySession();
 			closeDirectModalSuccess(t.settings.actionCloudDisconnected);
 		} catch (e) {
-			toast.error(String(e));
+			const msg = String(e);
+			toast.error(msg);
+			addDirectActionLog(
+				"error",
+				"Mate: Cloud direct disconnect failed",
+				msg || "Unknown error",
+				["mate", "connection", "cloud", "disconnect", "failed"],
+			);
 		} finally {
 			setDirectActionLoading(null);
 		}
@@ -341,10 +465,10 @@ export function SettingsPage() {
 						<button
 							type="button"
 							onClick={handleDirectCardClick}
-							className={`group relative flex flex-col items-center justify-center text-left rounded-xl border p-3 transition-all duration-200 min-h-[80px] ${
+							className={`group relative flex flex-col items-center justify-center text-left rounded-xl border p-3 transition-all duration-300 min-h-[80px] ${
 								connectionMode === "local" && isOnline
 									? activeModeCardClass
-									: "border-card-border bg-card-bg"
+									: "border-card-border bg-card-bg hover:border-primary/30 hover:-translate-y-1 hover:shadow-md"
 							}`}
 						>
 							{connectionMode === "local" && isOnline && (
@@ -352,9 +476,6 @@ export function SettingsPage() {
 									<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
 									<span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
 								</span>
-							)}
-							{!(connectionMode === "local" && isOnline) && (
-								<span className="pointer-events-none absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-surface-variant/20 ring-1 ring-white/15" />
 							)}
 							<div className="flex items-center gap-1.5">
 								{" "}
@@ -383,10 +504,10 @@ export function SettingsPage() {
 						<button
 							type="button"
 							onClick={handleLicenseCardClick}
-							className={`group relative flex flex-col items-center justify-center text-left rounded-xl border p-3 transition-all duration-200 min-h-[80px] ${
+							className={`group relative flex flex-col items-center justify-center text-left rounded-xl border p-3 transition-all duration-300 min-h-[80px] ${
 								connectionMode === "license" && isOnline
 									? activeModeCardClass
-									: "border-card-border bg-card-bg"
+									: "border-card-border bg-card-bg hover:border-primary/30 hover:-translate-y-1 hover:shadow-md"
 							}`}
 						>
 							{connectionMode === "license" && isOnline && (
@@ -395,10 +516,6 @@ export function SettingsPage() {
 									<span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
 								</span>
 							)}
-							{!(connectionMode === "license" && isOnline) && (
-								<span className="pointer-events-none absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-surface-variant/20 ring-1 ring-white/15" />
-							)}
-
 							<div className="flex items-center gap-1.5">
 								<Server
 									size={15}
@@ -728,10 +845,10 @@ export function SettingsPage() {
 								</p>
 								<div className="grid grid-cols-2 gap-3">
 									<div
-										className={`rounded-xl border bg-surface transition-colors flex flex-col ${
+										className={`rounded-xl border bg-surface flex flex-col transition-all duration-300 ${
 											isLocalConnected
 												? activeModeCardClass
-												: "border-card-border"
+												: "border-card-border hover:border-primary/30 hover:-translate-y-1 hover:shadow-md"
 										}`}
 									>
 										<button
@@ -742,7 +859,7 @@ export function SettingsPage() {
 												}
 											}}
 											disabled={directBusy}
-											className={`w-full p-4 text-center hover:bg-surface-variant/30 rounded-xl ${
+											className={`w-full p-4 text-center rounded-xl ${
 												isLocalConnected
 													? ""
 													: "flex-1 flex flex-col justify-center"
@@ -811,10 +928,10 @@ export function SettingsPage() {
 									</div>
 
 									<div
-										className={`rounded-xl border bg-surface transition-colors flex flex-col ${
+										className={`rounded-xl border bg-surface flex flex-col transition-all duration-300 ${
 											isCloudConnected
 												? activeModeCardClass
-												: "border-card-border"
+												: "border-card-border hover:border-primary/30 hover:-translate-y-1 hover:shadow-md"
 										}`}
 									>
 										<button
@@ -822,7 +939,7 @@ export function SettingsPage() {
 											onClick={() => {
 												setDirectTarget("cloud");
 											}}
-											className={`w-full p-4 text-center hover:bg-surface-variant/30 rounded-xl ${
+											className={`w-full p-4 text-center rounded-xl ${
 												isCloudConnected
 													? ""
 													: "flex-1 flex flex-col justify-center"
@@ -965,7 +1082,7 @@ export function SettingsPage() {
 
 			{/* ── 换 Key 确认弹窗 ── */}
 			{showConfirmKey && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
 					<div className="bg-card-bg border border-card-border rounded-xl shadow-2xl ring-1 ring-white/10 w-80 p-5 space-y-4">
 						<div className="flex items-center gap-2">
 							<TriangleAlert size={16} className="text-yellow-500" />

@@ -80,8 +80,8 @@ async fn discover_gateway_port(base_port: u16) -> Result<u16, String> {
 
 async fn run_openclaw_daemon(action: &str) -> Result<String, String> {
     let action = action.trim().to_lowercase();
-    if action != "stop" && action != "restart" {
-        return Err("仅支持 stop 或 restart".to_string());
+    if action != "start" && action != "stop" && action != "restart" {
+        return Err("仅支持 start / stop / restart".to_string());
     }
 
     let script = format!("openclaw daemon {}", action);

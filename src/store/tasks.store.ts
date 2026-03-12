@@ -89,19 +89,10 @@ function toActivityLog(entry: StoredActivityLogEntry): ActivityLog {
 	};
 }
 
-function isTauriRuntime(): boolean {
-	return (
-		typeof window !== "undefined" &&
-		typeof (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !==
-			"undefined"
-	);
-}
-
 async function invokeLogCommand<T = void>(
 	cmd: string,
 	args?: Record<string, unknown>,
 ) {
-	if (!isTauriRuntime()) return undefined as T | undefined;
 	return invoke<T>(cmd, args);
 }
 
@@ -110,8 +101,10 @@ async function persistLogToFile(
 	bucket: LogBucket,
 ): Promise<void> {
 	try {
+		const dayKey = getDayKey(new Date());
 		await invokeLogCommand("append_activity_log", {
-			dayKey: getDayKey(new Date()),
+			dayKey,
+			day_key: dayKey,
 			entry: toStoredEntry(log, bucket),
 		});
 	} catch (error) {
@@ -121,10 +114,12 @@ async function persistLogToFile(
 
 async function loadLogsFromFile(): Promise<StoredActivityLogEntry[]> {
 	try {
+		const dayKey = getDayKey(new Date());
 		const result = await invokeLogCommand<StoredActivityLogEntry[]>(
 			"load_activity_logs",
 			{
-				dayKey: getDayKey(new Date()),
+				dayKey,
+				day_key: dayKey,
 			},
 		);
 		return Array.isArray(result) ? result : [];

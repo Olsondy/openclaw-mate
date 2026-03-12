@@ -8,19 +8,21 @@ const LOG_PREFIX: &str = "activity-";
 const LOG_SUFFIX: &str = ".jsonl";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct StoredActivityLog {
     pub bucket: String,
     pub id: String,
     pub timestamp: String,
+    #[serde(alias = "taskId")]
     pub task_id: String,
     pub source: String,
     pub level: String,
     pub title: String,
     pub description: String,
     pub tags: Vec<String>,
+    #[serde(alias = "taskType")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task_type: Option<String>,
+    #[serde(alias = "durationMs")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<u64>,
 }
@@ -132,4 +134,55 @@ pub fn clear_activity_logs() -> Result<(), String> {
     let logs_dir = crate::app_paths::app_logs_dir()?;
     cleanup_old_logs(&logs_dir, None)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::StoredActivityLog;
+
+    #[test]
+    fn deserialize_supports_snake_case_fields() {
+        let raw = r#"{
+            "bucket":"client",
+            "id":"log-1",
+            "timestamp":"2026-03-12T11:00:00.000Z",
+            "task_id":"task-1",
+            "source":"mate",
+            "level":"info",
+            "title":"title",
+            "description":"desc",
+            "tags":["a","b"],
+            "task_type":"notify",
+            "duration_ms":12
+        }"#;
+
+        let parsed: StoredActivityLog =
+            serde_json::from_str(raw).expect("snake_case payload should deserialize");
+        assert_eq!(parsed.task_id, "task-1");
+        assert_eq!(parsed.task_type.as_deref(), Some("notify"));
+        assert_eq!(parsed.duration_ms, Some(12));
+    }
+
+    #[test]
+    fn deserialize_supports_camel_case_fields() {
+        let raw = r#"{
+            "bucket":"client",
+            "id":"log-1",
+            "timestamp":"2026-03-12T11:00:00.000Z",
+            "taskId":"task-1",
+            "source":"mate",
+            "level":"info",
+            "title":"title",
+            "description":"desc",
+            "tags":["a","b"],
+            "taskType":"notify",
+            "durationMs":12
+        }"#;
+
+        let parsed: StoredActivityLog =
+            serde_json::from_str(raw).expect("camelCase payload should deserialize");
+        assert_eq!(parsed.task_id, "task-1");
+        assert_eq!(parsed.task_type.as_deref(), Some("notify"));
+        assert_eq!(parsed.duration_ms, Some(12));
+    }
 }

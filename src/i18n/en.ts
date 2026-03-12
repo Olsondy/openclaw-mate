@@ -240,6 +240,7 @@ export const en: Dict = {
 		cloudDisconnect: "Disconnect",
 		cloudRestart: "Restart",
 		cloudGatewayAddrRequired: "Please enter a gateway address",
+		actionLocalStarting: "Starting local gateway...",
 		actionLocalStopping: "Stopping local gateway...",
 		actionLocalStopped: "Local gateway stopped",
 		actionLocalRestarting: "Restarting local gateway...",

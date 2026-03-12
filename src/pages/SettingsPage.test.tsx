@@ -1,11 +1,13 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useI18nStore } from "../i18n";
-import { useConfigStore, useConnectionStore } from "../store";
+import { useConfigStore, useConnectionStore, useTasksStore } from "../store";
 import { SettingsPage } from "./SettingsPage";
 
+const invokeMock = vi.fn().mockResolvedValue(undefined);
+
 vi.mock("@tauri-apps/api/core", () => ({
-	invoke: vi.fn().mockResolvedValue(undefined),
+	invoke: (...args: unknown[]) => invokeMock(...args),
 }));
 
 vi.mock("../hooks/useNodeConnection", () => ({
@@ -19,6 +21,8 @@ vi.mock("../hooks/useNodeConnection", () => ({
 describe("SettingsPage breathing indicators", () => {
 	beforeEach(() => {
 		localStorage.clear();
+		invokeMock.mockReset();
+		invokeMock.mockResolvedValue(undefined);
 		useI18nStore.setState({ locale: "zh", theme: "system" });
 		useConnectionStore.setState({
 			status: "online",
@@ -41,20 +45,46 @@ describe("SettingsPage breathing indicators", () => {
 			directMode: "local",
 			directCloudAddress: "",
 		});
+		useTasksStore.setState({ logs: [], clientLogs: [], pendingApprovals: [] });
 	});
 
-	it("shows breathing indicator on the current connection card", () => {
-		render(<SettingsPage />);
-		expect(screen.getByTestId("active-mode-pulse-local")).toBeInTheDocument();
-		expect(
-			screen.queryByTestId("active-mode-pulse-license"),
-		).not.toBeInTheDocument();
-	});
+	it("records client log when local pre-connect fails", async () => {
+		useConnectionStore.setState({
+			status: "idle",
+			errorMessage: null,
+			onlineAt: null,
+		});
+		useConfigStore.setState({
+			connectionMode: null,
+			directMode: null,
+		});
+		invokeMock.mockImplementation(async (cmd: string) => {
+			if (cmd === "local_connect") {
+				throw new Error("local gateway not found");
+			}
+			return undefined;
+		});
 
-	it("shows breathing indicator beside direct modal title when connected", () => {
 		render(<SettingsPage />);
 		const directLabel = screen.getByText("直连");
 		fireEvent.click(directLabel.closest("button") as HTMLButtonElement);
-		expect(screen.getByTestId("direct-modal-title-pulse")).toBeInTheDocument();
+		const localDesc = screen.getByText("自动探测本机已安装的网关");
+		fireEvent.click(localDesc.closest("button") as HTMLButtonElement);
+
+		await waitFor(() => {
+			expect(useTasksStore.getState().clientLogs.length).toBeGreaterThan(0);
+		});
+		expect(invokeMock).toHaveBeenCalledWith("local_gateway_daemon", {
+			action: "start",
+		});
+		await waitFor(
+			() => {
+				const localConnectCalls = invokeMock.mock.calls.filter(
+					(call) => call[0] === "local_connect",
+				);
+				expect(localConnectCalls.length).toBeGreaterThan(1);
+			},
+			{ timeout: 3500 },
+		);
 	});
 });

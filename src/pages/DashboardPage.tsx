@@ -266,7 +266,7 @@ export function DashboardPage() {
 				)}
 
 				{/* 主内容：活动日志 + 任务分布 */}
-				<div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,1fr)] gap-4">
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 					{/* 活动日志 */}
 					<Card className="flex flex-col" style={{ height: 420 }}>
 						<div className="flex items-center justify-between mb-3">

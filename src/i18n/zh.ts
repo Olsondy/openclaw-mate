@@ -207,6 +207,7 @@ export type Dict = {
 		cloudDisconnect: string;
 		cloudRestart: string;
 		cloudGatewayAddrRequired: string;
+		actionLocalStarting: string;
 		actionLocalStopping: string;
 		actionLocalStopped: string;
 		actionLocalRestarting: string;
@@ -480,6 +481,7 @@ export const zh: Dict = {
 		cloudDisconnect: "断开",
 		cloudRestart: "重启",
 		cloudGatewayAddrRequired: "请先输入网关地址",
+		actionLocalStarting: "正在启动本地网关...",
 		actionLocalStopping: "正在停止本地网关...",
 		actionLocalStopped: "本地网关已停止",
 		actionLocalRestarting: "正在重启本地网关...",

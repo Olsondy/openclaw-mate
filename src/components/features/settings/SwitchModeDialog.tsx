@@ -96,7 +96,7 @@ export function SwitchModeDialog({
 	};
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
 			<div className="bg-card-bg border border-card-border rounded-xl shadow-2xl ring-1 ring-white/10 w-full max-w-sm mx-4 p-5 space-y-4">
 				{/* 标题 */}
 				<div className="flex items-center gap-2">

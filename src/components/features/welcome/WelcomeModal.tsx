@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useT } from "../../../i18n";
 import { useConfigStore } from "../../../store";
 import type { ConnectionMode } from "../../../store/config.store";
+import { Card } from "../../ui";
 
 interface Props {
 	onDone: () => void;
@@ -25,18 +26,18 @@ export function WelcomeModal({ onDone }: Props) {
 		hint: string;
 	}[] = [
 		{
-			mode: "license",
-			icon: KeyRound,
-			title: t.welcome.licenseTitle,
-			desc: t.welcome.licenseDesc,
-			hint: t.welcome.licenseHint,
-		},
-		{
 			mode: "local",
 			icon: Monitor,
 			title: t.welcome.localTitle,
 			desc: t.welcome.localDesc,
 			hint: t.welcome.localHint,
+		},
+		{
+			mode: "license",
+			icon: KeyRound,
+			title: t.welcome.licenseTitle,
+			desc: t.welcome.licenseDesc,
+			hint: t.welcome.licenseHint,
 		},
 	];
 
@@ -54,11 +55,11 @@ export function WelcomeModal({ onDone }: Props) {
 	};
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-			<div className="w-full max-w-xl px-4">
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+			<Card className="w-full max-w-lg p-8">
 				{/* 标题 */}
 				<div className="text-center mb-8">
-					<h1 className="text-xl font-semibold text-surface-on mb-1">
+					<h1 className="text-2xl font-semibold text-surface-on mb-2">
 						{t.welcome.title}
 					</h1>
 					<p className="text-sm text-surface-on-variant">
@@ -67,7 +68,7 @@ export function WelcomeModal({ onDone }: Props) {
 				</div>
 
 				{/* 选项卡片 */}
-				<div className="grid grid-cols-2 gap-4 mb-6">
+				<div className="grid grid-cols-2 gap-4 mb-8">
 					{OPTIONS.map(({ mode, icon: Icon, title, desc, hint }) => {
 						const isActive = selected === mode;
 						return (
@@ -76,11 +77,11 @@ export function WelcomeModal({ onDone }: Props) {
 								type="button"
 								onClick={() => setSelected(mode)}
 								className={`
-                  text-left p-5 rounded-xl border transition-all duration-200
+                  text-left p-5 rounded-xl border transition-all duration-300
                   ${
 										isActive
-											? "border-primary/60 bg-primary/5 ring-1 ring-primary/30"
-											: "border-card-border bg-card-bg hover:border-white/20"
+											? "border-primary/60 bg-primary/5 ring-1 ring-primary/30 shadow-sm"
+											: "border-card-border bg-card-bg hover:border-primary/30 hover:-translate-y-1 hover:shadow-md"
 									}
                 `}
 							>
@@ -112,13 +113,13 @@ export function WelcomeModal({ onDone }: Props) {
 				</div>
 
 				{/* 操作按钮 */}
-				<div className="flex flex-col gap-2">
+				<div className="flex flex-col gap-3">
 					<button
 						type="button"
 						disabled={!selected || loading}
 						onClick={handleConfirm}
-						className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg
-              bg-primary text-primary-on text-sm font-medium
+						className="w-full flex items-center justify-center gap-2 py-3 rounded-xl
+              bg-primary text-primary-on text-sm font-semibold
               disabled:opacity-40 disabled:cursor-not-allowed
               hover:opacity-90 transition-opacity"
 					>
@@ -134,7 +135,7 @@ export function WelcomeModal({ onDone }: Props) {
 						{t.welcome.skip}
 					</button>
 				</div>
-			</div>
+			</Card>
 		</div>
 	);
 }
