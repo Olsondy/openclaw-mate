@@ -169,17 +169,27 @@ export function SettingsPage() {
 		});
 	};
 
-	const sleep = (ms: number) =>
-		new Promise<void>((resolve) => {
-			setTimeout(resolve, ms);
-		});
-
 	const connectDiscoveredLocalGateway = async () => {
 		const result = await invoke<{
 			gateway_url: string;
 			gateway_web_ui: string;
 			token: string;
+			restart_log?: string | null;
 		}>("local_connect");
+		if (result.restart_log?.trim()) {
+			addDirectActionLog(
+				"info",
+				"Mate: Local gateway auto-start",
+				result.restart_log,
+				["mate", "connection", "local", "service", "start", "auto"],
+			);
+		}
+		addDirectActionLog(
+			"info",
+			"Mate: Local gateway discovered",
+			result.gateway_url,
+			["mate", "connection", "local", "probe", "ok"],
+		);
 		const ok = await connectDirectGateway({
 			gatewayUrl: result.gateway_url,
 			gatewayWebUI: result.gateway_web_ui,
@@ -191,60 +201,12 @@ export function SettingsPage() {
 				useConnectionStore.getState().errorMessage || t.localConnect.errorMsg;
 			throw new Error(reason);
 		}
-	};
-
-	const recoverAndConnectLocalGateway = async () => {
-		try {
-			await connectDiscoveredLocalGateway();
-			return;
-		} catch (initialError) {
-			addDirectActionLog(
-				"warning",
-				"Mate: Local direct initial connect failed",
-				String(initialError),
-				["mate", "connection", "local", "recover", "initial-failed"],
-			);
-			let lastError: unknown = initialError;
-			for (const action of ["start", "restart"] as const) {
-				try {
-					const actionMessage =
-						action === "start"
-							? t.settings.actionLocalStarting
-							: t.settings.actionLocalRestarting;
-					setDirectStatus({
-						level: "info",
-						message: actionMessage,
-					});
-					addDirectActionLog(
-						"warning",
-						`Mate: Local direct auto-recover (${action})`,
-						actionMessage,
-						["mate", "connection", "local", "recover", action],
-					);
-					await invoke("local_gateway_daemon", { action });
-					await sleep(3500);
-					await connectDiscoveredLocalGateway();
-					addDirectActionLog(
-						"success",
-						`Mate: Local direct auto-recover succeeded (${action})`,
-						t.localConnect.connected,
-						["mate", "connection", "local", "recover", action, "success"],
-					);
-					return;
-				} catch (error) {
-					lastError = error;
-					addDirectActionLog(
-						"warning",
-						`Mate: Local direct auto-recover failed (${action})`,
-						String(error),
-						["mate", "connection", "local", "recover", action, "failed"],
-					);
-				}
-			}
-			throw lastError instanceof Error
-				? lastError
-				: new Error(String(lastError));
-		}
+		addDirectActionLog(
+			"success",
+			"Mate: Local direct connected",
+			result.gateway_url,
+			["mate", "connection", "local", "connected"],
+		);
 	};
 
 	const doActivate = async () => {
@@ -295,7 +257,7 @@ export function SettingsPage() {
 				gatewayUrl: normalized.gatewayUrl,
 				gatewayWebUI: normalized.gatewayWebUI,
 				gatewayToken: directToken.trim(),
-				profileLabel: "Direct Cloud",
+				profileLabel: t.settings.directCloudGateway,
 			});
 			if (!ok) return;
 			setDirectMode("cloud");
@@ -322,7 +284,15 @@ export function SettingsPage() {
 				level: "info",
 				message: t.settings.actionLocalStopping,
 			});
-			await invoke("local_gateway_daemon", { action: "stop" });
+			const daemonMessage = await invoke<string>("local_gateway_daemon", {
+				action: "stop",
+			});
+			addDirectActionLog(
+				"info",
+				"Mate: Local gateway stopped",
+				daemonMessage || t.settings.actionLocalStopped,
+				["mate", "connection", "local", "service", "stop"],
+			);
 			await disconnectGatewaySession();
 			setDirectMode("local");
 			closeDirectModalSuccess(t.settings.actionLocalStopped);
@@ -349,7 +319,7 @@ export function SettingsPage() {
 				t.localConnect.connecting,
 				["mate", "connection", "local", "precheck"],
 			);
-			await recoverAndConnectLocalGateway();
+			await connectDiscoveredLocalGateway();
 			setDirectMode("local");
 			await invoke("save_app_config", {
 				config: { connectionMode: "local" },
@@ -386,19 +356,16 @@ export function SettingsPage() {
 				t.settings.actionLocalRestarting,
 				["mate", "connection", "local", "restart"],
 			);
-			await invoke("local_gateway_daemon", { action: "restart" });
-			const result = await invoke<{
-				gateway_url: string;
-				gateway_web_ui: string;
-				token: string;
-			}>("local_connect");
-			const ok = await connectDirectGateway({
-				gatewayUrl: result.gateway_url,
-				gatewayWebUI: result.gateway_web_ui,
-				gatewayToken: result.token,
-				profileLabel: "Direct Local",
+			const daemonMessage = await invoke<string>("local_gateway_daemon", {
+				action: "restart",
 			});
-			if (!ok) return;
+			addDirectActionLog(
+				"info",
+				"Mate: Local gateway restart completed",
+				daemonMessage || t.settings.actionLocalRestarted,
+				["mate", "connection", "local", "service", "restart"],
+			);
+			await connectDiscoveredLocalGateway();
 			setDirectMode("local");
 			await invoke("save_app_config", {
 				config: { connectionMode: "local" },
@@ -475,7 +442,7 @@ export function SettingsPage() {
 				gatewayUrl: normalized.gatewayUrl,
 				gatewayWebUI: normalized.gatewayWebUI,
 				gatewayToken: token,
-				profileLabel: "Direct Cloud",
+				profileLabel: t.settings.directCloudGateway,
 			});
 			if (!ok) return;
 			setDirectMode("cloud");

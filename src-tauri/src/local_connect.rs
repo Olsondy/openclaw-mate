@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::process::{Output, Stdio};
+use std::sync::{Mutex as StdMutex, OnceLock};
 use std::time::{Duration, Instant};
 
 #[cfg(target_os = "windows")]
@@ -8,10 +9,84 @@ use std::collections::HashSet;
 use std::os::windows::process::CommandExt;
 
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
 const DEFAULT_GATEWAY_PORT: u16 = 18789;
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+#[derive(Debug, Clone, Copy)]
+enum GatewayServicePhase {
+    Idle,
+    Probing,
+    Starting,
+    Running,
+    Stopping,
+    Stopped,
+    Restarting,
+    Error,
+}
+
+impl GatewayServicePhase {
+    fn as_str(self) -> &'static str {
+        match self {
+            GatewayServicePhase::Idle => "idle",
+            GatewayServicePhase::Probing => "probing",
+            GatewayServicePhase::Starting => "starting",
+            GatewayServicePhase::Running => "running",
+            GatewayServicePhase::Stopping => "stopping",
+            GatewayServicePhase::Stopped => "stopped",
+            GatewayServicePhase::Restarting => "restarting",
+            GatewayServicePhase::Error => "error",
+        }
+    }
+}
+
+#[derive(Debug)]
+struct GatewayRuntimeState {
+    phase: GatewayServicePhase,
+    last_action: String,
+    last_message: String,
+}
+
+impl Default for GatewayRuntimeState {
+    fn default() -> Self {
+        Self {
+            phase: GatewayServicePhase::Idle,
+            last_action: "idle".to_string(),
+            last_message: String::new(),
+        }
+    }
+}
+
+fn operation_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
+
+fn runtime_state() -> &'static StdMutex<GatewayRuntimeState> {
+    static STATE: OnceLock<StdMutex<GatewayRuntimeState>> = OnceLock::new();
+    STATE.get_or_init(|| StdMutex::new(GatewayRuntimeState::default()))
+}
+
+fn update_runtime_state(phase: GatewayServicePhase, action: &str, message: impl Into<String>) {
+    if let Ok(mut state) = runtime_state().lock() {
+        state.phase = phase;
+        state.last_action = action.to_string();
+        state.last_message = message.into();
+    }
+}
+
+fn busy_operation_error() -> String {
+    if let Ok(state) = runtime_state().lock() {
+        return format!(
+            "Gateway 正在执行 {}（phase={}），请稍后重试",
+            state.last_action,
+            state.phase.as_str()
+        );
+    }
+    "Gateway 正在执行其他操作，请稍后重试".to_string()
+}
 
 /// 本地连接结果，返回给前端
 #[derive(Debug, Serialize)]
@@ -21,7 +96,7 @@ pub struct LocalConnectResult {
     pub token: String,
     pub agent_id: String,
     pub device_name: String,
-    /// 兼容旧前端字段：当前实现不再修改本地配置或重启服务
+    /// 兼容旧前端字段：当 local_connect 触发自动拉起时，回传启动摘要
     pub restart_log: Option<String>,
 }
 
@@ -142,24 +217,46 @@ fn hide_window_for_std_command(cmd: &mut std::process::Command) {
 }
 
 struct OpenClawInvocation {
-    program: &'static str,
+    program: std::ffi::OsString,
     args: Vec<String>,
+}
+
+#[cfg(target_os = "windows")]
+fn resolve_windows_openclaw_program() -> std::ffi::OsString {
+    if let Ok(appdata) = std::env::var("APPDATA") {
+        let npm_cmd = PathBuf::from(appdata).join("npm").join("openclaw.cmd");
+        if npm_cmd.exists() {
+            return npm_cmd.into_os_string();
+        }
+    }
+
+    let candidates = ["openclaw.cmd", "openclaw.exe", "openclaw.bat", "openclaw"];
+    if let Some(path_var) = enhanced_path() {
+        for dir in std::env::split_paths(&path_var) {
+            for name in candidates {
+                let full = dir.join(name);
+                if full.exists() {
+                    return full.into_os_string();
+                }
+            }
+        }
+    }
+
+    "openclaw.cmd".into()
 }
 
 fn build_openclaw_invocation(args: &[&str]) -> OpenClawInvocation {
     #[cfg(target_os = "windows")]
     {
-        let mut merged = vec!["/C".to_string(), "openclaw".to_string()];
-        merged.extend(args.iter().map(|arg| (*arg).to_string()));
         OpenClawInvocation {
-            program: "cmd",
-            args: merged,
+            program: resolve_windows_openclaw_program(),
+            args: args.iter().map(|arg| (*arg).to_string()).collect(),
         }
     }
     #[cfg(not(target_os = "windows"))]
     {
         OpenClawInvocation {
-            program: "openclaw",
+            program: "openclaw".into(),
             args: args.iter().map(|arg| (*arg).to_string()).collect(),
         }
     }
@@ -584,12 +681,72 @@ async fn run_gateway_action(action: &str) -> Result<String, String> {
         return Err("仅支持 start / stop / restart".to_string());
     }
 
+    let _guard = operation_lock()
+        .try_lock()
+        .map_err(|_| busy_operation_error())?;
+
     let port = resolve_gateway_port();
-    match action.as_str() {
+    let phase = match action.as_str() {
+        "start" => GatewayServicePhase::Starting,
+        "stop" => GatewayServicePhase::Stopping,
+        "restart" => GatewayServicePhase::Restarting,
+        _ => GatewayServicePhase::Idle,
+    };
+    update_runtime_state(phase, &action, format!("开始执行 {}", action));
+
+    let result = match action.as_str() {
         "start" => start_gateway_service(port).await,
         "stop" => stop_gateway_service(port).await,
         "restart" => restart_gateway_service(port).await,
         _ => unreachable!(),
+    };
+
+    match (&action[..], &result) {
+        ("start", Ok(msg)) | ("restart", Ok(msg)) => {
+            update_runtime_state(GatewayServicePhase::Running, &action, msg.clone())
+        }
+        ("stop", Ok(msg)) => {
+            update_runtime_state(GatewayServicePhase::Stopped, &action, msg.clone())
+        }
+        (_, Err(err)) => update_runtime_state(GatewayServicePhase::Error, &action, err.clone()),
+        _ => {}
+    }
+
+    result
+}
+
+async fn discover_or_bootstrap_gateway(base_port: u16) -> Result<(u16, Option<String>), String> {
+    match discover_gateway_port(base_port).await {
+        Ok(port) => {
+            update_runtime_state(
+                GatewayServicePhase::Running,
+                "local_connect",
+                format!("探测到在线 gateway 端口: {}", port),
+            );
+            Ok((port, None))
+        }
+        Err(probe_error) => {
+            update_runtime_state(
+                GatewayServicePhase::Starting,
+                "local_connect",
+                format!("探测失败，尝试启动: {}", probe_error),
+            );
+            let start_message = start_gateway_service(base_port).await?;
+            let port = discover_gateway_port(base_port)
+                .await
+                .map_err(|discover_err| {
+                    format!(
+                        "{}\n启动后仍未探测到可用 gateway: {}",
+                        start_message, discover_err
+                    )
+                })?;
+            update_runtime_state(
+                GatewayServicePhase::Running,
+                "local_connect",
+                format!("自动拉起后已连接端口: {}", port),
+            );
+            Ok((port, Some(start_message)))
+        }
     }
 }
 
@@ -599,27 +756,51 @@ async fn run_gateway_action(action: &str) -> Result<String, String> {
 pub async fn local_connect(app: tauri::AppHandle) -> Result<LocalConnectResult, String> {
     use tauri::Manager;
 
+    let _guard = operation_lock()
+        .try_lock()
+        .map_err(|_| busy_operation_error())?;
+    update_runtime_state(
+        GatewayServicePhase::Probing,
+        "local_connect",
+        "开始探测本地 Gateway",
+    );
+
     // 1. 找工作空间
     let home = app
         .path()
         .home_dir()
         .map_err(|e| format!("无法获取用户主目录: {}", e))?;
-    let workspace = find_workspace(home)?;
+    let workspace = find_workspace(home).inspect_err(|err| {
+        update_runtime_state(GatewayServicePhase::Error, "local_connect", err.clone())
+    })?;
 
     // 2. 读取配置中的 gateway 端口和 token（只读）
     let (base_port, token) = read_gateway_settings(&workspace);
 
-    // 3. 探测在线的 gateway 端口
-    let port = discover_gateway_port(base_port).await?;
+    // 3. 探测在线端口；若探测失败，则自动启动后再探测
+    let (port, recovery_message) =
+        discover_or_bootstrap_gateway(base_port)
+            .await
+            .inspect_err(|err| {
+                update_runtime_state(GatewayServicePhase::Error, "local_connect", err.clone())
+            })?;
 
     // 4. 加载 device identity
-    let identity = crate::device_identity::load_or_create_device_identity(&app)?;
+    let identity =
+        crate::device_identity::load_or_create_device_identity(&app).inspect_err(|err| {
+            update_runtime_state(GatewayServicePhase::Error, "local_connect", err.clone())
+        })?;
 
     let gateway_web_ui = if token.is_empty() {
         format!("http://127.0.0.1:{}", port)
     } else {
         format!("http://127.0.0.1:{}/#token={}", port, token)
     };
+    update_runtime_state(
+        GatewayServicePhase::Running,
+        "local_connect",
+        format!("本地 Gateway 已就绪: ws://127.0.0.1:{}", port),
+    );
 
     Ok(LocalConnectResult {
         gateway_url: format!("ws://127.0.0.1:{}", port),
@@ -627,7 +808,7 @@ pub async fn local_connect(app: tauri::AppHandle) -> Result<LocalConnectResult, 
         token,
         agent_id: identity.device_id.clone(),
         device_name: format!("openclaw-mate-{}", &identity.device_id[..8]),
-        restart_log: None,
+        restart_log: recovery_message,
     })
 }
 
@@ -639,20 +820,17 @@ pub async fn local_gateway_daemon(action: String) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::build_openclaw_invocation;
+    use super::GatewayServicePhase;
 
     #[cfg(target_os = "windows")]
     #[test]
-    fn windows_invocation_uses_cmd_wrapper() {
+    fn windows_invocation_prefers_openclaw_binary_without_cmd_wrapper() {
         let invocation = build_openclaw_invocation(&["daemon", "start"]);
-        assert_eq!(invocation.program, "cmd");
+        let program = invocation.program.to_string_lossy().to_ascii_lowercase();
+        assert!(program.contains("openclaw"));
         assert_eq!(
             invocation.args,
-            vec![
-                "/C".to_string(),
-                "openclaw".to_string(),
-                "daemon".to_string(),
-                "start".to_string()
-            ]
+            vec!["daemon".to_string(), "start".to_string()]
         );
     }
 
@@ -665,5 +843,17 @@ mod tests {
             invocation.args,
             vec!["daemon".to_string(), "start".to_string()]
         );
+    }
+
+    #[test]
+    fn service_phase_labels_are_stable() {
+        assert_eq!(GatewayServicePhase::Idle.as_str(), "idle");
+        assert_eq!(GatewayServicePhase::Probing.as_str(), "probing");
+        assert_eq!(GatewayServicePhase::Starting.as_str(), "starting");
+        assert_eq!(GatewayServicePhase::Running.as_str(), "running");
+        assert_eq!(GatewayServicePhase::Stopping.as_str(), "stopping");
+        assert_eq!(GatewayServicePhase::Stopped.as_str(), "stopped");
+        assert_eq!(GatewayServicePhase::Restarting.as_str(), "restarting");
+        assert_eq!(GatewayServicePhase::Error.as_str(), "error");
     }
 }

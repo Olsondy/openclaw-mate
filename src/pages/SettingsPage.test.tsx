@@ -48,7 +48,7 @@ describe("SettingsPage breathing indicators", () => {
 		useTasksStore.setState({ logs: [], clientLogs: [], pendingApprovals: [] });
 	});
 
-	it("records client log when local pre-connect fails", async () => {
+	it("records client log and keeps daemon control in backend on local connect failure", async () => {
 		useConnectionStore.setState({
 			status: "idle",
 			errorMessage: null,
@@ -74,17 +74,13 @@ describe("SettingsPage breathing indicators", () => {
 		await waitFor(() => {
 			expect(useTasksStore.getState().clientLogs.length).toBeGreaterThan(0);
 		});
-		expect(invokeMock).toHaveBeenCalledWith("local_gateway_daemon", {
-			action: "start",
-		});
-		await waitFor(
-			() => {
-				const localConnectCalls = invokeMock.mock.calls.filter(
-					(call) => call[0] === "local_connect",
-				);
-				expect(localConnectCalls.length).toBeGreaterThan(1);
-			},
-			{ timeout: 7500 },
+		const daemonCalls = invokeMock.mock.calls.filter(
+			(call) => call[0] === "local_gateway_daemon",
 		);
+		expect(daemonCalls.length).toBe(0);
+		const localConnectCalls = invokeMock.mock.calls.filter(
+			(call) => call[0] === "local_connect",
+		);
+		expect(localConnectCalls.length).toBe(1);
 	});
 });
