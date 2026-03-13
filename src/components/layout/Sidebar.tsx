@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import {
+	Bot,
 	ClipboardList,
+	Layers,
 	LayoutDashboard,
 	Loader2,
 	MessageSquare,
@@ -10,6 +12,7 @@ import {
 	RefreshCw,
 	Settings,
 	Terminal,
+	Zap,
 } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
@@ -34,8 +37,11 @@ export function Sidebar() {
 
 	const navItems = [
 		{ to: "/", icon: LayoutDashboard, label: t.sidebar.dashboard },
+		{ to: "/chat", icon: Bot, label: t.sidebar.chat },
 		{ to: "/channel", icon: MessageSquare, label: t.sidebar.channel },
 		{ to: "/activity", icon: ClipboardList, label: t.sidebar.activity },
+		{ to: "/models", icon: Layers, label: t.sidebar.models },
+		{ to: "/skills", icon: Zap, label: t.sidebar.skills },
 	];
 
 	const openConsole = async () => {

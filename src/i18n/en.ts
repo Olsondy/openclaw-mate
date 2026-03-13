@@ -4,6 +4,9 @@ export const en: Dict = {
 	// Sidebar
 	sidebar: {
 		dashboard: "Dashboard",
+		chat: "AI Chat",
+		models: "Models",
+		skills: "Skills",
 		activity: "Activity Logs",
 		channel: "Message Channels",
 		capabilities: "Capabilities",
@@ -25,6 +28,9 @@ export const en: Dict = {
 		channelSub: "Channel Configuration",
 		capabilitiesSub: "Enable or disable execution modules",
 		settingsSub: "Activation & Configuration",
+		chatSub: "Chat with AI agents, manage sessions",
+		modelsSub: "View models configured in the Gateway",
+		skillsSub: "View and manage Gateway skills",
 	},
 
 	// Dashboard
@@ -65,6 +71,47 @@ export const en: Dict = {
 		tasks: "tasks",
 		nodeActive: "Active",
 		nodeIdle: "Idle",
+		agentCount: "Agents",
+		activeSkills: "Active Skills",
+	},
+
+	// Chat
+	chat: {
+		title: "AI Chat",
+		newSession: "New Session",
+		deleteSession: "Delete Session",
+		resetSession: "Reset Session",
+		inputPlaceholder: "Type a message...",
+		send: "Send",
+		abort: "Stop",
+		noSessions: "No sessions yet",
+		loading: "Loading...",
+		notConnected: "Gateway not connected",
+		notConnectedHint: "Connect to a Gateway to use AI Chat",
+	},
+
+	// Models
+	models: {
+		title: "Models",
+		noModels: "No models configured",
+		notConnected: "Gateway not connected",
+		notConnectedHint: "Connect to a Gateway to view the model list",
+		contextWindow: "Context Window",
+		provider: "Provider",
+	},
+
+	// Skills
+	skills: {
+		title: "Skills",
+		noSkills: "No skills found",
+		notConnected: "Gateway not connected",
+		notConnectedHint: "Connect to a Gateway to manage skills",
+		eligible: "Available",
+		disabled: "Disabled",
+		missingDeps: "Missing deps",
+		install: "Install deps",
+		installing: "Installing...",
+		reload: "Reload",
 	},
 
 	// Activity
@@ -280,12 +327,13 @@ export const en: Dict = {
 		modeCloud: "Tenant Connection",
 		modeLocal: "Direct Gateway",
 		openclawInstallHint:
-			"No usable OpenClaw runtime was found. Install the bundled runtime and retry.",
-		openclawInstallAction: "Install Bundled Runtime",
-		openclawInstalling: "Installing bundled runtime...",
-		openclawInstallSuccess: "Bundled runtime installed. Reconnecting...",
+			"No usable OpenClaw runtime was found on this machine. Click below to download and install it automatically.",
+		openclawInstallAction: "Download & Install Runtime",
+		openclawInstalling: "Downloading runtime...",
+		openclawInstallSuccess: "Runtime installed. Reconnecting...",
 		openclawInstallFailed:
-			"Bundled runtime installation failed. Check whether this build includes runtime assets.",
+			"Runtime download failed. Please check your network and retry.",
+		openclawDownloadProgress: "{pct}%  {downloaded} / {total}",
 	},
 	activityLog: {
 		title: "Activity Log",

@@ -3,6 +3,7 @@ import {
 	AlertCircle,
 	AlertTriangle,
 	BarChart3,
+	Bot,
 	CheckCircle2,
 	ClipboardList,
 	Clock,
@@ -10,6 +11,7 @@ import {
 	Download,
 	HelpCircle,
 	Server,
+	Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { TopBar } from "../components/layout/TopBar";
@@ -36,6 +38,10 @@ export function DashboardPage() {
 	const [configuredModelsCount, setConfiguredModelsCount] = useState<
 		number | null
 	>(null);
+	const [agentCount, setAgentCount] = useState<number | null>(null);
+	const [activeSkillsCount, setActiveSkillsCount] = useState<number | null>(
+		null,
+	);
 
 	const stats = getStats();
 	const taskLogs = useMemo(
@@ -52,31 +58,34 @@ export function DashboardPage() {
 		if (operatorStatus !== "connected") {
 			setGatewayVersion("--");
 			setConfiguredModelsCount(null);
+			setAgentCount(null);
+			setActiveSkillsCount(null);
 			return () => {
 				cancelled = true;
 			};
 		}
 
 		const loadDashboardMeta = async () => {
-			const [presenceRes, modelsRes] = await Promise.all([
+			const [presenceRes, modelsRes, agentsRes, skillsRes] = await Promise.all([
 				opCall("system-presence", {}),
 				opCall("models.list", {}),
+				opCall("agents.list", {}),
+				opCall("skills.status", {}),
 			]);
-			if (cancelled) {
-				return;
-			}
+			if (cancelled) return;
 
-			const resolvedVersion = resolveGatewayVersion(presenceRes.payload);
-			setGatewayVersion(resolvedVersion ?? "--");
+			setGatewayVersion(resolveGatewayVersion(presenceRes.payload) ?? "--");
 			setConfiguredModelsCount(resolveConfiguredModelsCount(modelsRes.payload));
+			setAgentCount(resolveAgentCount(agentsRes.payload));
+			setActiveSkillsCount(resolveActiveSkillsCount(skillsRes.payload));
 		};
 
 		loadDashboardMeta().catch(() => {
-			if (cancelled) {
-				return;
-			}
+			if (cancelled) return;
 			setGatewayVersion("--");
 			setConfiguredModelsCount(null);
+			setAgentCount(null);
+			setActiveSkillsCount(null);
 		});
 
 		return () => {
@@ -202,6 +211,34 @@ export function DashboardPage() {
 							</p>
 							<p className="text-xl font-bold text-surface-on tabular-nums">
 								{configuredModelsCount ?? "--"}
+							</p>
+						</div>
+					</Card>
+
+					<Card className="flex items-center gap-4 py-3 px-4">
+						<div className="w-8 h-8 rounded-lg flex items-center justify-center bg-orange-500/10 text-orange-500 shrink-0">
+							<Bot size={15} />
+						</div>
+						<div>
+							<p className="text-[11px] text-surface-on-variant mb-0.5">
+								{t.dashboard.agentCount}
+							</p>
+							<p className="text-xl font-bold text-surface-on tabular-nums">
+								{agentCount ?? "--"}
+							</p>
+						</div>
+					</Card>
+
+					<Card className="flex items-center gap-4 py-3 px-4">
+						<div className="w-8 h-8 rounded-lg flex items-center justify-center bg-fuchsia-500/10 text-fuchsia-500 shrink-0">
+							<Zap size={15} />
+						</div>
+						<div>
+							<p className="text-[11px] text-surface-on-variant mb-0.5">
+								{t.dashboard.activeSkills}
+							</p>
+							<p className="text-xl font-bold text-surface-on tabular-nums">
+								{activeSkillsCount ?? "--"}
 							</p>
 						</div>
 					</Card>
@@ -369,6 +406,29 @@ function resolveConfiguredModelsCount(payload: unknown): number | null {
 		return null;
 	}
 	return models.length;
+}
+
+function resolveAgentCount(payload: unknown): number | null {
+	if (!payload || typeof payload !== "object") return null;
+	const p = payload as Record<string, unknown>;
+	const agents = Array.isArray(p.agents)
+		? p.agents
+		: Array.isArray(payload)
+			? payload
+			: null;
+	return agents ? agents.length : null;
+}
+
+function resolveActiveSkillsCount(payload: unknown): number | null {
+	if (!payload || typeof payload !== "object") return null;
+	const p = payload as Record<string, unknown>;
+	const skills = Array.isArray(p.skills) ? p.skills : null;
+	if (!skills) return null;
+	return skills.filter((s: unknown) => {
+		if (!s || typeof s !== "object") return false;
+		const skill = s as { eligible?: boolean; disabled?: boolean };
+		return skill.eligible === true && skill.disabled !== true;
+	}).length;
 }
 
 function TaskLogRow({ log }: { log: ActivityLog }) {

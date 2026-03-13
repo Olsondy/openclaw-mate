@@ -62,13 +62,68 @@ The main window uses the Windows 11 **Mica** material effect (`windowEffects: ["
 
 ## Frontend Route Map
 
-- `/` -> `DashboardPage`
-- `/activity` -> `ActivityPage`
-- `/capabilities` -> `CapabilitiesPage`
-- `/analytics` -> `AnalyticsPage`
-- `/settings` -> `SettingsPage`
+- `/` → `DashboardPage` — 任务统计、Gateway 状态、模型/Agent/技能数量概览
+- `/chat` → `ChatPage` — 多 Agent 会话列表与流式 AI 对话
+- `/models` → `ModelsPage` — Gateway 已配置模型列表（只读）
+- `/skills` → `SkillsPage` — Gateway 技能状态查看与依赖安装
+- `/activity` → `ActivityPage` — 实时任务执行日志
+- `/channel` → `ChannelPage` — 渠道授权管理
+- `/settings` → `SettingsPage` — 连接模式选择与配置
 
 All routes are nested under `AppLayout`, which provides the persistent sidebar shell.
+
+## Operator RPC Layer
+
+ClawMate 通过 `operator_client.rs` 维护一条 operator 角色的 WebSocket 长连接到 Gateway，用于管理操作和数据查询。前端通过 `useOperatorConnection` hook 调用 `opCall(method, params)` 与 Gateway 交互。
+
+### 连接生命周期
+
+- Node WebSocket 上线（`ws:connected`）→ 自动触发 operator 连接
+- Node 断开 → operator 同步断开
+- 状态存储在 `operator.store.ts`：`idle | connecting | connected | error`
+
+### 常用 RPC 方法
+
+| 方法 | 权限 | 说明 |
+|------|------|------|
+| `models.list` | `operator.read` | 获取已配置模型列表 |
+| `agents.list` | `operator.read` | 获取 Agent 列表 |
+| `skills.status` | `operator.read` | 获取技能状态列表 |
+| `sessions.list` | `operator.read` | 获取会话列表 |
+| `chat.history` | `operator.admin` | 获取会话历史消息 |
+| `chat.send` | `operator.write` | 发送消息 |
+| `chat.abort` | `operator.write` | 中止生成 |
+| `sessions.reset` | `operator.admin` | 重置会话 |
+| `sessions.delete` | `operator.admin` | 删除会话 |
+| `skills.install` | `operator.admin` | 安装技能依赖 |
+| `system-presence` | — | Gateway 版本信息 |
+
+### 流式事件
+
+Gateway 通过 `ws:gateway_event` 事件向前端推送实时消息，Chat 流式输出的事件格式：
+
+```
+event: "chat"
+payload: {
+  state: "delta"   // 增量文字片段
+         "final"   // 生成完成
+         "error"   // 生成出错
+  sessionKey: string
+  runId: string
+  text?: string    // delta 时的增量内容
+}
+```
+
+Session key 格式：`agent:{agentId}:{rest}`，例如 `agent:main:direct:user123`，通过解析可得到关联的 agentId。
+
+### Dashboard 统计数据来源
+
+| 统计项 | RPC 方法 | 字段 |
+|--------|---------|------|
+| 已配置模型数 | `models.list` | `payload.models.length` |
+| Agent 数 | `agents.list` | `payload.agents.length` |
+| 可用技能数 | `skills.status` | `payload.skills.filter(s => s.eligible && !s.disabled).length` |
+| Gateway 版本 | `system-presence` | `payload[].version` |
 
 ## Store Ownership
 

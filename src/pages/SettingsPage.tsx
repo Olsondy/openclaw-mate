@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useTauriEvent } from "../hooks/useTauri";
 import { ConnectionModeCard } from "../components/features/connection/ConnectionModeCard";
 import { ApiWizard } from "../components/features/wizard/ApiWizard";
 import { TopBar } from "../components/layout/TopBar";
@@ -155,6 +156,11 @@ export function SettingsPage() {
 		| null
 	>(null);
 	const [openclawInstallLoading, setOpenclawInstallLoading] = useState(false);
+	const [downloadProgress, setDownloadProgress] = useState<{
+		percent: number;
+		downloaded: number;
+		total: number;
+	} | null>(null);
 	const [switchModeRequest, setSwitchModeRequest] = useState<{
 		fromMode: ConnectionMode;
 		toMode: ConnectionMode;
@@ -175,6 +181,13 @@ export function SettingsPage() {
 	const isCloudConnected = isDirectConnected && directMode === "cloud";
 	const directBusy =
 		directLoading || directActionLoading !== null || openclawInstallLoading;
+
+	useTauriEvent<{ percent: number; downloaded: number; total: number }>(
+		"runtime:download-progress",
+		useCallback((payload) => {
+			setDownloadProgress(payload);
+		}, []),
+	);
 
 	const isLoopbackGateway = useCallback((endpoint: string): boolean => {
 		const raw = endpoint.trim();
@@ -694,8 +707,13 @@ export function SettingsPage() {
 		}
 	};
 
+	// CDN manifest URL，部署后替换为实际地址
+	const RUNTIME_MANIFEST_URL =
+		"https://your-server.com/openclaw-runtime/latest/manifest.json";
+
 	const handleInstallOpenclaw = async () => {
 		setOpenclawInstallLoading(true);
+		setDownloadProgress(null);
 		try {
 			setDirectStatus({
 				level: "info",
@@ -703,14 +721,17 @@ export function SettingsPage() {
 			});
 			addDirectActionLog(
 				"info",
-				"Mate: OpenClaw install started",
+				"Mate: Runtime download started",
 				t.settings.openclawInstalling,
 				["mate", "connection", "local", "install", "start"],
 			);
-			const installMessage = await invoke<string>("install_openclaw_cli");
+			const installMessage = await invoke<string>("download_and_install_runtime", {
+				manifestUrl: RUNTIME_MANIFEST_URL,
+			});
+			setDownloadProgress(null);
 			addDirectActionLog(
 				"success",
-				"Mate: OpenClaw install completed",
+				"Mate: Runtime download completed",
 				installMessage || t.settings.openclawInstallSuccess,
 				["mate", "connection", "local", "install", "success"],
 			);
@@ -722,13 +743,14 @@ export function SettingsPage() {
 			await handleLocalConnect();
 		} catch (e) {
 			const msg = String(e);
+			setDownloadProgress(null);
 			setDirectStatus({
 				level: "error",
 				message: msg || t.settings.openclawInstallFailed,
 			});
 			addDirectActionLog(
 				"error",
-				"Mate: OpenClaw install failed",
+				"Mate: Runtime download failed",
 				msg || t.settings.openclawInstallFailed,
 				["mate", "connection", "local", "install", "failed"],
 			);
@@ -1241,6 +1263,30 @@ export function SettingsPage() {
 									<p className="text-xs text-primary/90">
 										{t.settings.openclawInstallHint}
 									</p>
+									{openclawInstallLoading && downloadProgress && (
+										<div className="space-y-1">
+											<div className="w-full bg-primary/20 rounded-full h-1.5 overflow-hidden">
+												<div
+													className="bg-primary h-1.5 rounded-full transition-all duration-200"
+													style={{ width: `${downloadProgress.percent}%` }}
+												/>
+											</div>
+											<p className="text-xs text-primary/70 text-right tabular-nums">
+												{t.settings.openclawDownloadProgress
+													.replace("{pct}", String(downloadProgress.percent))
+													.replace(
+														"{downloaded}",
+														`${(downloadProgress.downloaded / 1024 / 1024).toFixed(1)}MB`,
+													)
+													.replace(
+														"{total}",
+														downloadProgress.total > 0
+															? `${(downloadProgress.total / 1024 / 1024).toFixed(1)}MB`
+															: "...",
+													)}
+											</p>
+										</div>
+									)}
 									<Button
 										size="sm"
 										className="w-full"

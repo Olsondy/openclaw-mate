@@ -1127,6 +1127,266 @@ pub async fn install_openclaw_cli(app: tauri::AppHandle) -> Result<String, Strin
     install_openclaw_package(app).await
 }
 
+// ─── 按需下载安装 Runtime ────────────────────────────────────────
+
+fn detect_platform() -> &'static str {
+    match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("macos", "aarch64") => "darwin-arm64",
+        ("macos", "x86_64") => "darwin-x64",
+        ("linux", "x86_64") => "linux-x64",
+        ("windows", "x86_64") => "win-x64",
+        _ => "unknown",
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct RuntimeManifest {
+    platforms: std::collections::HashMap<String, RuntimePlatformEntry>,
+}
+
+#[derive(serde::Deserialize)]
+struct RuntimePlatformEntry {
+    url: String,
+    sha256: Option<String>,
+}
+
+#[derive(serde::Serialize, Clone)]
+struct DownloadProgressPayload {
+    percent: u64,
+    downloaded: u64,
+    total: u64,
+}
+
+async fn fetch_manifest(url: &str) -> Result<RuntimeManifest, String> {
+    reqwest::get(url)
+        .await
+        .map_err(|e| format!("获取 manifest 失败: {}", e))?
+        .json::<RuntimeManifest>()
+        .await
+        .map_err(|e| format!("解析 manifest 失败: {}", e))
+}
+
+async fn stream_download(
+    app: &tauri::AppHandle,
+    url: &str,
+    dest: &std::path::Path,
+) -> Result<(), String> {
+    use futures_util::StreamExt;
+    use tauri::Emitter;
+    use tokio::io::AsyncWriteExt;
+
+    let resp = reqwest::get(url)
+        .await
+        .map_err(|e| format!("下载请求失败: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("下载失败 HTTP {}: {}", resp.status(), url));
+    }
+
+    let total = resp.content_length().unwrap_or(0);
+    let mut downloaded: u64 = 0;
+    let mut file = tokio::fs::File::create(dest)
+        .await
+        .map_err(|e| format!("创建临时文件失败: {}", e))?;
+
+    let mut stream = resp.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| format!("下载中断: {}", e))?;
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| format!("写入临时文件失败: {}", e))?;
+        downloaded += chunk.len() as u64;
+
+        let percent = if total > 0 {
+            downloaded * 100 / total
+        } else {
+            0
+        };
+        let _ = app.emit(
+            "runtime:download-progress",
+            DownloadProgressPayload {
+                percent,
+                downloaded,
+                total,
+            },
+        );
+    }
+
+    file.flush()
+        .await
+        .map_err(|e| format!("刷新文件失败: {}", e))?;
+    Ok(())
+}
+
+fn verify_sha256(path: &std::path::Path, expected: &str) -> Result<(), String> {
+    use sha2::{Digest, Sha256};
+    let data =
+        std::fs::read(path).map_err(|e| format!("读取文件校验失败: {}", e))?;
+    let actual = hex::encode(Sha256::digest(&data));
+    if actual != expected {
+        return Err(format!(
+            "SHA256 校验失败，文件可能已损坏\n期望: {}\n实际: {}",
+            expected, actual
+        ));
+    }
+    Ok(())
+}
+
+fn extract_tar_gz_strip1(
+    archive: &std::path::Path,
+    target: &std::path::Path,
+) -> Result<(), String> {
+    use flate2::read::GzDecoder;
+    use tar::Archive;
+
+    std::fs::create_dir_all(target)
+        .map_err(|e| format!("创建目标目录失败: {}", e))?;
+
+    let file =
+        std::fs::File::open(archive).map_err(|e| format!("打开压缩包失败: {}", e))?;
+    let gz = GzDecoder::new(file);
+    let mut ar = Archive::new(gz);
+
+    for entry in ar.entries().map_err(|e| format!("读取 tar 失败: {}", e))? {
+        let mut entry = entry.map_err(|e| format!("读取 tar entry 失败: {}", e))?;
+        let raw_path = entry
+            .path()
+            .map_err(|e| format!("读取路径失败: {}", e))?
+            .to_path_buf();
+
+        // 去掉最外层目录 (openclaw-runtime/)
+        let stripped: std::path::PathBuf = raw_path.components().skip(1).collect();
+        if stripped.as_os_str().is_empty() {
+            continue;
+        }
+
+        let dest = target.join(&stripped);
+        if let Some(parent) = dest.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("创建目录失败: {}", e))?;
+        }
+
+        entry
+            .unpack(&dest)
+            .map_err(|e| format!("解压 {} 失败: {}", stripped.display(), e))?;
+
+        // Unix: 确保 node 二进制有可执行权限
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let components: Vec<_> = stripped.components().collect();
+            let is_node_bin = components.len() >= 3
+                && components[0].as_os_str() == "node"
+                && components[1].as_os_str() == "bin";
+            if is_node_bin {
+                let _ = std::fs::set_permissions(
+                    &dest,
+                    std::fs::Permissions::from_mode(0o755),
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn download_and_install_runtime(
+    app: tauri::AppHandle,
+    manifest_url: String,
+) -> Result<String, String> {
+    let _guard = operation_lock()
+        .try_lock()
+        .map_err(|_| busy_operation_error())?;
+
+    update_runtime_state(
+        GatewayServicePhase::Starting,
+        "download_runtime",
+        "开始下载 OpenClaw Runtime",
+    );
+
+    // 1. 检测当前平台
+    let platform = detect_platform();
+    if platform == "unknown" {
+        return Err(format!(
+            "不支持的平台: {} {}",
+            std::env::consts::OS,
+            std::env::consts::ARCH
+        ));
+    }
+
+    // 2. 获取 manifest
+    let manifest = fetch_manifest(&manifest_url).await.inspect_err(|e| {
+        update_runtime_state(GatewayServicePhase::Error, "download_runtime", e.clone())
+    })?;
+
+    let entry = manifest.platforms.get(platform).ok_or_else(|| {
+        format!(
+            "manifest 中没有平台 {} 的下载信息，请检查 CDN 包是否包含该平台",
+            platform
+        )
+    })?;
+
+    // 3. 下载到临时文件
+    let tmp_dir = std::env::temp_dir().join(format!("ocruntime-dl-{}", platform));
+    std::fs::create_dir_all(&tmp_dir)
+        .map_err(|e| format!("创建临时目录失败: {}", e))?;
+    let tmp_archive = tmp_dir.join("runtime.tar.gz");
+
+    update_runtime_state(
+        GatewayServicePhase::Starting,
+        "download_runtime",
+        format!("正在下载 {} Runtime...", platform),
+    );
+
+    stream_download(&app, &entry.url, &tmp_archive)
+        .await
+        .inspect_err(|e| {
+            update_runtime_state(GatewayServicePhase::Error, "download_runtime", e.clone())
+        })?;
+
+    // 4. 可选 sha256 校验
+    if let Some(expected_sha256) = &entry.sha256 {
+        verify_sha256(&tmp_archive, expected_sha256).inspect_err(|e| {
+            update_runtime_state(GatewayServicePhase::Error, "download_runtime", e.clone())
+        })?;
+    }
+
+    // 5. 清空并解压到 runtime 目录
+    let runtime_target = bundled_runtime_target_dir()?;
+    if runtime_target.exists() {
+        std::fs::remove_dir_all(&runtime_target)
+            .map_err(|e| format!("清理旧 Runtime 失败: {}", e))?;
+    }
+
+    update_runtime_state(
+        GatewayServicePhase::Starting,
+        "download_runtime",
+        "正在解压 Runtime...",
+    );
+
+    extract_tar_gz_strip1(&tmp_archive, &runtime_target).inspect_err(|e| {
+        update_runtime_state(GatewayServicePhase::Error, "download_runtime", e.clone())
+    })?;
+
+    // 6. 写 wrapper 脚本
+    let runtime_home = bundled_runtime_home_dir()?;
+    write_openclaw_wrapper(&runtime_target, &runtime_home).inspect_err(|e| {
+        update_runtime_state(GatewayServicePhase::Error, "download_runtime", e.clone())
+    })?;
+
+    // 7. 清理临时文件
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+
+    let summary = format!("OpenClaw Runtime 下载安装完成 ({})", platform);
+    update_runtime_state(
+        GatewayServicePhase::Idle,
+        "download_runtime",
+        summary.clone(),
+    );
+    Ok(summary)
+}
+
 #[cfg(test)]
 mod tests {
     use super::build_openclaw_invocation;

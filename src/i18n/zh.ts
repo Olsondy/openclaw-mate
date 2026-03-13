@@ -2,6 +2,9 @@
 export type Dict = {
 	sidebar: {
 		dashboard: string;
+		chat: string;
+		models: string;
+		skills: string;
 		activity: string;
 		channel: string;
 		capabilities: string;
@@ -21,6 +24,9 @@ export type Dict = {
 		channelSub: string;
 		capabilitiesSub: string;
 		settingsSub: string;
+		chatSub: string;
+		modelsSub: string;
+		skillsSub: string;
 	};
 	dashboard: {
 		status: string;
@@ -59,6 +65,41 @@ export type Dict = {
 		tasks: string;
 		nodeActive: string;
 		nodeIdle: string;
+		agentCount: string;
+		activeSkills: string;
+	};
+	chat: {
+		title: string;
+		newSession: string;
+		deleteSession: string;
+		resetSession: string;
+		inputPlaceholder: string;
+		send: string;
+		abort: string;
+		noSessions: string;
+		loading: string;
+		notConnected: string;
+		notConnectedHint: string;
+	};
+	models: {
+		title: string;
+		noModels: string;
+		notConnected: string;
+		notConnectedHint: string;
+		contextWindow: string;
+		provider: string;
+	};
+	skills: {
+		title: string;
+		noSkills: string;
+		notConnected: string;
+		notConnectedHint: string;
+		eligible: string;
+		disabled: string;
+		missingDeps: string;
+		install: string;
+		installing: string;
+		reload: string;
 	};
 	activity: {
 		auditLogs: string;
@@ -245,6 +286,7 @@ export type Dict = {
 		openclawInstalling: string;
 		openclawInstallSuccess: string;
 		openclawInstallFailed: string;
+		openclawDownloadProgress: string;
 	};
 	activityLog: {
 		title: string;
@@ -262,6 +304,9 @@ export const zh: Dict = {
 	// Sidebar
 	sidebar: {
 		dashboard: "仪表盘",
+		chat: "AI 对话",
+		models: "模型",
+		skills: "技能",
 		activity: "活动日志",
 		channel: "消息渠道",
 		capabilities: "节点能力",
@@ -283,6 +328,9 @@ export const zh: Dict = {
 		channelSub: "通道配置",
 		capabilitiesSub: "启用或禁用执行模块",
 		settingsSub: "激活与配置",
+		chatSub: "与 AI Agent 对话，管理多会话",
+		modelsSub: "查看 Gateway 已配置的模型",
+		skillsSub: "查看与管理 Gateway 技能",
 	},
 
 	// Dashboard
@@ -323,6 +371,47 @@ export const zh: Dict = {
 		tasks: "任务",
 		nodeActive: "运行中",
 		nodeIdle: "空闲",
+		agentCount: "Agent 数",
+		activeSkills: "可用技能数",
+	},
+
+	// Chat
+	chat: {
+		title: "AI 对话",
+		newSession: "新建会话",
+		deleteSession: "删除会话",
+		resetSession: "重置会话",
+		inputPlaceholder: "输入消息...",
+		send: "发送",
+		abort: "停止",
+		noSessions: "暂无会话",
+		loading: "加载中...",
+		notConnected: "Gateway 未连接",
+		notConnectedHint: "请先连接到 Gateway 后使用 AI 对话功能",
+	},
+
+	// Models
+	models: {
+		title: "模型",
+		noModels: "暂无已配置的模型",
+		notConnected: "Gateway 未连接",
+		notConnectedHint: "请先连接到 Gateway 后查看模型列表",
+		contextWindow: "上下文窗口",
+		provider: "提供商",
+	},
+
+	// Skills
+	skills: {
+		title: "技能",
+		noSkills: "暂无技能",
+		notConnected: "Gateway 未连接",
+		notConnectedHint: "请先连接到 Gateway 后管理技能",
+		eligible: "可用",
+		disabled: "已禁用",
+		missingDeps: "依赖缺失",
+		install: "安装依赖",
+		installing: "安装中...",
+		reload: "刷新",
 	},
 
 	// Activity
@@ -528,12 +617,12 @@ export const zh: Dict = {
 		modeCloud: "租户连接",
 		modeLocal: "网关直连",
 		openclawInstallHint:
-			"检测到本机未安装可用的 OpenClaw Runtime，点击下方按钮安装内置 Runtime 后重试。",
-		openclawInstallAction: "一键安装内置 Runtime",
-		openclawInstalling: "正在安装内置 Runtime...",
-		openclawInstallSuccess: "内置 Runtime 安装完成，正在重新连接",
-		openclawInstallFailed:
-			"内置 Runtime 安装失败，请检查安装包是否包含 Runtime",
+			"本机未检测到可用的 OpenClaw Runtime，点击下方按钮自动下载安装后重试。",
+		openclawInstallAction: "下载安装 Runtime",
+		openclawInstalling: "正在下载 Runtime...",
+		openclawInstallSuccess: "Runtime 安装完成，正在重新连接",
+		openclawInstallFailed: "Runtime 下载失败，请检查网络后重试",
+		openclawDownloadProgress: "{pct}%  {downloaded} / {total}",
 	},
 	activityLog: {
 		title: "活动日志",

@@ -123,6 +123,7 @@ fn main() {
             local_connect::local_connect,
             local_connect::local_gateway_daemon,
             local_connect::install_openclaw_cli,
+            local_connect::download_and_install_runtime,
             profile_store::get_app_config,
             profile_store::save_app_config,
             profile_store::get_license_profile,

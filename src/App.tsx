@@ -15,8 +15,11 @@ import { useTauriEvent } from "./hooks/useTauri";
 import { useI18nStore, useT } from "./i18n";
 import { ActivityPage } from "./pages/ActivityPage";
 import { ChannelPage } from "./pages/ChannelPage";
+import { ChatPage } from "./pages/ChatPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { ModelsPage } from "./pages/ModelsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { SkillsPage } from "./pages/SkillsPage";
 import { useConfigStore, useConnectionStore, useTasksStore } from "./store";
 import type { ConnectionMode } from "./store/config.store";
 
@@ -393,6 +396,9 @@ function AppInner() {
 			<Routes>
 				<Route path="/" element={<AppLayout />}>
 					<Route index element={<DashboardPage />} />
+					<Route path="chat" element={<ChatPage />} />
+					<Route path="models" element={<ModelsPage />} />
+					<Route path="skills" element={<SkillsPage />} />
 					<Route path="activity" element={<ActivityPage />} />
 					<Route path="channel" element={<ChannelPage />} />
 					<Route path="settings" element={<SettingsPage />} />
