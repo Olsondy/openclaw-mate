@@ -3,7 +3,6 @@ export type Dict = {
 	sidebar: {
 		dashboard: string;
 		chat: string;
-		models: string;
 		skills: string;
 		activity: string;
 		channel: string;
@@ -25,7 +24,6 @@ export type Dict = {
 		capabilitiesSub: string;
 		settingsSub: string;
 		chatSub: string;
-		modelsSub: string;
 		skillsSub: string;
 	};
 	dashboard: {
@@ -81,14 +79,6 @@ export type Dict = {
 		notConnected: string;
 		notConnectedHint: string;
 		reload: string;
-	};
-	models: {
-		title: string;
-		noModels: string;
-		notConnected: string;
-		notConnectedHint: string;
-		contextWindow: string;
-		provider: string;
 	};
 	skills: {
 		title: string;
@@ -306,7 +296,6 @@ export const zh: Dict = {
 	sidebar: {
 		dashboard: "仪表盘",
 		chat: "AI 对话",
-		models: "模型",
 		skills: "技能",
 		activity: "活动日志",
 		channel: "消息渠道",
@@ -330,7 +319,6 @@ export const zh: Dict = {
 		capabilitiesSub: "启用或禁用执行模块",
 		settingsSub: "激活与配置",
 		chatSub: "与 AI Agent 对话，管理多会话",
-		modelsSub: "查看 Gateway 已配置的模型",
 		skillsSub: "查看与管理 Gateway 技能",
 	},
 
@@ -390,16 +378,6 @@ export const zh: Dict = {
 		notConnected: "Gateway 未连接",
 		notConnectedHint: "请先连接到 Gateway 后使用 AI 对话功能",
 		reload: "刷新",
-	},
-
-	// Models
-	models: {
-		title: "模型",
-		noModels: "暂无已配置的模型",
-		notConnected: "Gateway 未连接",
-		notConnectedHint: "请先连接到 Gateway 后查看模型列表",
-		contextWindow: "上下文窗口",
-		provider: "提供商",
 	},
 
 	// Skills

@@ -17,7 +17,6 @@ import { ActivityPage } from "./pages/ActivityPage";
 import { ChannelPage } from "./pages/ChannelPage";
 import { ChatPage } from "./pages/ChatPage";
 import { DashboardPage } from "./pages/DashboardPage";
-import { ModelsPage } from "./pages/ModelsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SkillsPage } from "./pages/SkillsPage";
 import { useConfigStore, useConnectionStore, useTasksStore } from "./store";
@@ -117,6 +116,8 @@ function AppInner() {
 		skipFeishuGuide,
 		setSkipModelGuide,
 		setSkipFeishuGuide,
+		guideEligible,
+		setGuideEligible,
 	} = useConfigStore();
 	const { verifyAndConnect, connectDirectGateway } = useNodeConnection();
 
@@ -297,8 +298,11 @@ function AppInner() {
 				if (!cancelled) {
 					setAutoReconnectOpen(true);
 					setAutoReconnectText(t.welcome.autoReconnectPreparing);
+					// Mark this connection as startup-initiated, allowing guide popups
+					setGuideEligible(true);
 				}
 				await tryAutoReconnect(normalized);
+				setGuideEligible(false);
 			} catch {
 				if (!hasConnectedOnce && !cancelled) {
 					setShowWelcome(true);
@@ -317,6 +321,7 @@ function AppInner() {
 	}, [
 		hasConnectedOnce,
 		setConnectionMode,
+		setGuideEligible,
 		t.welcome.autoReconnectPreparing,
 		tryAutoReconnect,
 	]);
@@ -351,9 +356,11 @@ function AppInner() {
 		setHtmlClass(theme === "dark");
 	}, [theme]);
 
-	// 首次上线后的模型/飞书引导：点击“稍后设置”后永久不再自动弹出
+	// 引导弹窗：仅在 guideEligible=true 时触发（启动自动重连 或 Welcome 确认流程）
+	// Settings 手动连接不设 guideEligible，因此不触发引导
 	useEffect(() => {
-		if (status !== "online" || guideTriggeredRef.current) return;
+		if (status !== "online" || guideTriggeredRef.current || !guideEligible)
+			return;
 		guideTriggeredRef.current = true;
 		if (!skipModelGuide) {
 			setShowModelWizard(true);
@@ -362,7 +369,7 @@ function AppInner() {
 		if (!skipFeishuGuide) {
 			setShowFeishuWizard(true);
 		}
-	}, [skipFeishuGuide, skipModelGuide, status]);
+	}, [guideEligible, skipFeishuGuide, skipModelGuide, status]);
 
 	useTauriEvent<GatewayEventEnvelope>(
 		"ws:gateway_event",
@@ -397,7 +404,6 @@ function AppInner() {
 				<Route path="/" element={<AppLayout />}>
 					<Route index element={<DashboardPage />} />
 					<Route path="chat" element={<ChatPage />} />
-					<Route path="models" element={<ModelsPage />} />
 					<Route path="skills" element={<SkillsPage />} />
 					<Route path="activity" element={<ActivityPage />} />
 					<Route path="channel" element={<ChannelPage />} />

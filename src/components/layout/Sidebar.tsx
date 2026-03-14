@@ -2,7 +2,6 @@ import { invoke } from "@tauri-apps/api/core";
 import {
 	Bot,
 	ClipboardList,
-	Layers,
 	LayoutDashboard,
 	Loader2,
 	MessageSquare,
@@ -40,7 +39,6 @@ export function Sidebar() {
 		{ to: "/chat", icon: Bot, label: t.sidebar.chat },
 		{ to: "/channel", icon: MessageSquare, label: t.sidebar.channel },
 		{ to: "/activity", icon: ClipboardList, label: t.sidebar.activity },
-		{ to: "/models", icon: Layers, label: t.sidebar.models },
 		{ to: "/skills", icon: Zap, label: t.sidebar.skills },
 	];
 

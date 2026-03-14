@@ -42,6 +42,14 @@ interface ConfigState {
 	skipModelGuide: boolean;
 	/** 飞书引导是否已跳过/完成 */
 	skipFeishuGuide: boolean;
+	/**
+	 * 引导弹窗资格标志（仅内存，不持久化）
+	 * 仅在以下两种场景下设为 true：
+	 *   1. 启动时自动重连流程
+	 *   2. Welcome 选模式确认流程
+	 * Settings 手动连接不设置此标志，从而不触发引导
+	 */
+	guideEligible: boolean;
 
 	setLicenseKey: (key: string) => void;
 	setRuntimeConfig: (config: NodeRuntimeConfig) => void;
@@ -59,6 +67,7 @@ interface ConfigState {
 	markConnectedOnce: () => void;
 	setSkipModelGuide: (value: boolean) => void;
 	setSkipFeishuGuide: (value: boolean) => void;
+	setGuideEligible: (eligible: boolean) => void;
 	/** 切换模式时清除会话数据，但不清除 connectionMode 本身 */
 	resetForModeSwitch: () => void;
 }
@@ -91,7 +100,7 @@ export const useConfigStore = create<ConfigState>()(
 			hasConnectedOnce: false,
 			skipModelGuide: false,
 			skipFeishuGuide: false,
-
+			guideEligible: false,
 			setLicenseKey: (licenseKey) => set({ licenseKey }),
 
 			setRuntimeConfig: (runtimeConfig) => set({ runtimeConfig }),
@@ -124,7 +133,7 @@ export const useConfigStore = create<ConfigState>()(
 			markConnectedOnce: () => set({ hasConnectedOnce: true }),
 			setSkipModelGuide: (skipModelGuide) => set({ skipModelGuide }),
 			setSkipFeishuGuide: (skipFeishuGuide) => set({ skipFeishuGuide }),
-
+			setGuideEligible: (guideEligible) => set({ guideEligible }),
 			resetForModeSwitch: () =>
 				set({
 					runtimeConfig: null,

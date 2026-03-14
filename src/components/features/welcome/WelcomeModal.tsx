@@ -20,8 +20,12 @@ interface Props {
 }
 
 export function WelcomeModal({ onDone }: Props) {
-	const { setConnectionMode, setDirectMode, setDirectCloudAddress } =
-		useConfigStore();
+	const {
+		setConnectionMode,
+		setDirectMode,
+		setDirectCloudAddress,
+		setGuideEligible,
+	} = useConfigStore();
 	const navigate = useNavigate();
 	const t = useT();
 	const [selected, setSelected] = useState<ConnectionMode | null>(null);
@@ -52,6 +56,8 @@ export function WelcomeModal({ onDone }: Props) {
 					setDirectCloudAddress("");
 				}
 			}
+			// 用户通过引导流程选择连接方式，标记为引导资格，以便连接成功后弹出配置引导
+			setGuideEligible(true);
 			onDone();
 			navigate("/settings");
 		} finally {

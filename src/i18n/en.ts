@@ -5,7 +5,6 @@ export const en: Dict = {
 	sidebar: {
 		dashboard: "Dashboard",
 		chat: "AI Chat",
-		models: "Models",
 		skills: "Skills",
 		activity: "Activity Logs",
 		channel: "Message Channels",
@@ -29,7 +28,6 @@ export const en: Dict = {
 		capabilitiesSub: "Enable or disable execution modules",
 		settingsSub: "Activation & Configuration",
 		chatSub: "Chat with AI agents, manage sessions",
-		modelsSub: "View models configured in the Gateway",
 		skillsSub: "View and manage Gateway skills",
 	},
 
@@ -89,16 +87,6 @@ export const en: Dict = {
 		notConnected: "Gateway not connected",
 		notConnectedHint: "Connect to a Gateway to use AI Chat",
 		reload: "Refresh",
-	},
-
-	// Models
-	models: {
-		title: "Models",
-		noModels: "No models configured",
-		notConnected: "Gateway not connected",
-		notConnectedHint: "Connect to a Gateway to view the model list",
-		contextWindow: "Context Window",
-		provider: "Provider",
 	},
 
 	// Skills
