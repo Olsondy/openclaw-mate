@@ -312,7 +312,7 @@ export const zh: Dict = {
 	// Sidebar
 	sidebar: {
 		dashboard: "仪表盘",
-		chat: "AI 对话",
+		chat: "对话",
 		skills: "技能",
 		activity: "活动日志",
 		channel: "消息渠道",
@@ -383,7 +383,7 @@ export const zh: Dict = {
 
 	// Chat
 	chat: {
-		title: "AI 对话",
+		title: "对话",
 		newSession: "新建会话",
 		deleteSession: "删除会话",
 		resetSession: "重置会话",

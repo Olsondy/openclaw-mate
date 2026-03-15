@@ -4,7 +4,7 @@ export const en: Dict = {
 	// Sidebar
 	sidebar: {
 		dashboard: "Dashboard",
-		chat: "AI Chat",
+		chat: "Chat",
 		skills: "Skills",
 		activity: "Activity Logs",
 		channel: "Message Channels",
@@ -75,7 +75,7 @@ export const en: Dict = {
 
 	// Chat
 	chat: {
-		title: "AI Chat",
+		title: "Chat",
 		newSession: "New Session",
 		deleteSession: "Delete Session",
 		resetSession: "Reset Session",
