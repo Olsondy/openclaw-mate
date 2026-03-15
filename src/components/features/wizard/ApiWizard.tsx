@@ -1,7 +1,7 @@
 import { Cpu, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useGatewayConfig } from "../../../hooks/useGatewayConfig";
-import { Button, Card } from "../../ui";
+import { Button, Card, Select } from "../../ui";
 
 interface Props {
 	onSuccess: () => void;
@@ -131,19 +131,16 @@ export function ApiWizard({ onSuccess, onClose }: Props) {
 						>
 							模型供应商
 						</label>
-						<select
-							id="api-provider"
-							className={inputClass}
+						<Select
 							value={providerId}
-							onChange={(e) => setProviderId(e.target.value)}
-						>
-							<option value="">请选择供应商</option>
-							{PROVIDERS.map((item) => (
-								<option key={item.id} value={item.id}>
-									{item.label}
-								</option>
-							))}
-						</select>
+							onChange={setProviderId}
+							placeholder="请选择供应商"
+							options={PROVIDERS.map((item) => ({
+								value: item.id,
+								label: item.label,
+							}))}
+							className="w-full"
+						/>
 					</div>
 
 					<div>

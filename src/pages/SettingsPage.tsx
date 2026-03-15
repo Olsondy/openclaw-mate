@@ -23,12 +23,12 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useTauriEvent } from "../hooks/useTauri";
 import { ConnectionModeCard } from "../components/features/connection/ConnectionModeCard";
 import { ApiWizard } from "../components/features/wizard/ApiWizard";
 import { TopBar } from "../components/layout/TopBar";
-import { Button, Card, Switch } from "../components/ui";
+import { Button, Card, Select, Switch } from "../components/ui";
 import { useNodeConnection } from "../hooks/useNodeConnection";
+import { useTauriEvent } from "../hooks/useTauri";
 import type { Locale, Theme } from "../i18n";
 import { useI18nStore, useT } from "../i18n";
 import { makeLogId } from "../lib/activity-log";
@@ -725,9 +725,12 @@ export function SettingsPage() {
 				t.settings.openclawInstalling,
 				["mate", "connection", "local", "install", "start"],
 			);
-			const installMessage = await invoke<string>("download_and_install_runtime", {
-				manifestUrl: RUNTIME_MANIFEST_URL,
-			});
+			const installMessage = await invoke<string>(
+				"download_and_install_runtime",
+				{
+					manifestUrl: RUNTIME_MANIFEST_URL,
+				},
+			);
 			setDownloadProgress(null);
 			addDirectActionLog(
 				"success",
@@ -882,8 +885,6 @@ export function SettingsPage() {
 	const inputClass =
 		"w-full px-3 py-2 text-sm rounded-lg border border-white/15 bg-surface-variant text-surface-on placeholder:text-surface-on-variant/60 focus:outline-none focus:ring-1 focus:ring-white/20 font-mono tracking-wider";
 
-	const selectClass =
-		"text-sm px-2 py-1 rounded-lg border border-white/15 bg-surface-variant text-surface-on focus:outline-none";
 	const activeModeCardClass =
 		"border-primary/60 bg-primary/8 ring-1 ring-primary/30 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.2)]";
 
@@ -1035,22 +1036,23 @@ export function SettingsPage() {
 												? t.settings.approvalSystem
 												: t.settings.approvalVision}
 									</span>
-									<select
+									<Select
 										value={approvalRules[key]}
-										onChange={(e) =>
+										onChange={(v) =>
 											setApprovalRule(
 												key,
-												e.target.value as "always" | "never" | "sensitive_only",
+												v as "always" | "never" | "sensitive_only",
 											)
 										}
-										className={selectClass}
-									>
-										<option value="always">{t.settings.always}</option>
-										<option value="sensitive_only">
-											{t.settings.sensitiveOnly}
-										</option>
-										<option value="never">{t.settings.never}</option>
-									</select>
+										options={[
+											{ value: "always", label: t.settings.always },
+											{
+												value: "sensitive_only",
+												label: t.settings.sensitiveOnly,
+											},
+											{ value: "never", label: t.settings.never },
+										]}
+									/>
 								</div>
 							))}
 						</div>

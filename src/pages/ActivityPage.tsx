@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ActivityItem } from "../components/features/activity/ActivityItem";
 import { TopBar } from "../components/layout/TopBar";
+import { Select } from "../components/ui";
 import { useT } from "../i18n";
 import { useTasksStore } from "../store";
 import type { ActivityLog, LogLevel } from "../types";
@@ -118,10 +119,10 @@ export function ActivityPage() {
 							<label className="text-xs text-surface-on-variant">
 								{t.activity.levelLabel}
 							</label>
-							<select
+							<Select
 								value={currentLevel}
-								onChange={(e) => {
-									const value = e.target.value as LogLevel | "all";
+								onChange={(v) => {
+									const value = v as LogLevel | "all";
 									if (section === "client") {
 										setClientLevel(value);
 										return;
@@ -132,14 +133,9 @@ export function ActivityPage() {
 									}
 									setGatewayLevel(value);
 								}}
-								className="w-full rounded-lg border border-white/15 bg-surface-variant px-2.5 py-2 text-xs text-surface-on focus:outline-none"
-							>
-								{levelOptions.map((option) => (
-									<option key={option.value} value={option.value}>
-										{option.label}
-									</option>
-								))}
-							</select>
+								options={levelOptions}
+								className="w-full"
+							/>
 						</div>
 						<div className="space-y-1">
 							<label className="text-xs text-surface-on-variant">
