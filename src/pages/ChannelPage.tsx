@@ -25,32 +25,11 @@ interface ChannelDef {
 
 const CHANNELS: ChannelDef[] = [
 	{
-		id: "feishu",
-		emoji: "🪁",
-		color: "bg-blue-500/15",
-		textColor: "text-blue-400",
-		available: true,
-	},
-	{
 		id: "telegram",
 		emoji: "✈️",
 		color: "bg-sky-500/15",
 		textColor: "text-sky-400",
 		available: true,
-	},
-	{
-		id: "qq",
-		emoji: "🐧",
-		color: "bg-indigo-500/15",
-		textColor: "text-indigo-400",
-		available: false,
-	},
-	{
-		id: "dingtalk",
-		emoji: "🔔",
-		color: "bg-orange-500/15",
-		textColor: "text-orange-400",
-		available: false,
 	},
 	{
 		id: "discord",
@@ -64,6 +43,27 @@ const CHANNELS: ChannelDef[] = [
 		emoji: "💬",
 		color: "bg-emerald-500/15",
 		textColor: "text-emerald-400",
+		available: false,
+	},
+	{
+		id: "feishu",
+		emoji: "🪁",
+		color: "bg-blue-500/15",
+		textColor: "text-blue-400",
+		available: true,
+	},
+	{
+		id: "dingtalk",
+		emoji: "🔔",
+		color: "bg-orange-500/15",
+		textColor: "text-orange-400",
+		available: false,
+	},
+	{
+		id: "qq",
+		emoji: "🐧",
+		color: "bg-indigo-500/15",
+		textColor: "text-indigo-400",
 		available: false,
 	},
 ];
